@@ -90,7 +90,7 @@ class LibraryBuilder(object):
         nmag : int
             Number of bandpasses.
         mag0 : int
-            Index (0-based) of reference magnitude for `faint` and `msto`.
+            Index (1-based) of reference magnitude for `faint` and `msto`.
         iverb : int
             Verbosity of `mklib`.
             - 0 = silent
@@ -133,7 +133,7 @@ class LibraryBuilder(object):
         nmag : int
             Number of bandpasses.
         mag0 : int
-            Index (0-based) of reference magnitude for `faint` and `msto`.
+            Index (1-based) of reference magnitude for `faint` and `msto`.
         iverb : int
             Verbosity of `mklib`.
             - 0 = silent
