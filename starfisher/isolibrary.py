@@ -22,12 +22,21 @@ class LibraryBuilder(object):
     ----------
 
     input_dir : str
+        Directory where input files are stored for the StarFISH run.
+        Typically this is `'input'`.
+    isoc_prep_dir : str
         Name of the directory with raw isochrones, relative to the root of
         the StarFISH directory.
     """
-    def __init__(self, input_dir):
+    def __init__(self, input_dir, isoc_prep_dir):
         super(LibraryBuilder, self).__init__()
         self.input_dir = input_dir
+        self.isoc_prep_dir = isoc_prep_dir
+        self._isofile_path = None
+        self._libdat_pat = None
+        for dirname in (self.input_dir, self.isoc_prep_dir):
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
 
     def _build_isofile(self):
         """Build an isofile, specifying each isochrone file.
@@ -49,7 +58,7 @@ class LibraryBuilder(object):
         t = Table(names=('log(age)', 'path', 'output_path', 'msto'),
                dtypes=('f4', 'S40', 'S40', 'f4'))
 
-        isoc_paths = glob.glob(os.path.join(self.input_dir, "z*"))
+        isoc_paths = glob.glob(os.path.join(self.isoc_prep_dir, "z*"))
         for p in isoc_paths:
             # exact Z and Age from filename convention
             z_str, age_str = os.path.basename(p)[1:].split('_')
@@ -57,18 +66,84 @@ class LibraryBuilder(object):
             output_path = os.path.join("iso", basepath)
             t.add_row((float(age_str), p, output_path, 100.))
         
-        writepath = os.path.join(self.input_dir, "isofile")
-        if os.path.exists(writepath): os.remove(writepath)
-        t.write(writepath, format='ascii.no_header', delimiter=' ')
+        self._isofile_path = os.path.join(self.isoc_prep_dir, "isofile")
+        if os.path.exists(self._isofile_path): os.remove(self._isofile_path)
+        t.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
 
-    def install(self):
+    def _build_libdat(self, faint=30., dmag=0.005, dmod=0., gamma=-1.35,
+            nmag=2, mag0=1, iverb=0):
+        """Build the library data file, used by `mklib`.
+
+        Parameters
+        ----------
+
+        faint : float
+            Faint magnitude limit for output isochrone library (according to
+            filter at `mag0` index). Should be several mag fainter than the
+            data's faint limit.
+        dmag : float
+            Photometric distance between adjacent interpolated points.
+        dmod : float
+            Distance modulus (magnitudes).
+        gamma : float
+            Logarithmic IMF sloap (Salpeter = -1.35).
+        nmag : int
+            Number of bandpasses.
+        mag0 : int
+            Index (0-based) of reference magnitude for `faint` and `msto`.
+        iverb : int
+            Verbosity of `mklib`.
+            - 0 = silent
+            - 1 = screen messages
+            - 2 = extra output files
+        """
+        datstr = "%s\n%.3f\n%.3f\n%.3f\n%.3f\n%i\n%i\n%i" % \
+                (self._isofile_path, faint, dmag, dmod, gamma,
+                nmag, mag0, iverb)
+        self._libdat_path = os.path.join(self.input_dir, "lib.dat")
+        if os.path.exists(self._libdat_path): os.remove(self._libdat_path)
+        with open(self._libdat_path, 'w') as f:
+            f.write(datstr)
+
+    def _clean_isodir(self):
+        """Remove pre-existing isochrones from the isochrone installation dir,
+        `iso/`.
+        """
+        paths = glob.glob(os.path.join('iso', 'z*'))
+        for p in paths:
+            os.remove(p)
+
+    def install(self, **kwargs):
         """Runs `mklib` to install the parsed isochrones into StarFISH's
         `iso/` directory.
+
+        Parameters
+        ----------
+
+        faint : float
+            Faint magnitude limit for output isochrone library (according to
+            filter at `mag0` index). Should be several mag fainter than the
+            data's faint limit.
+        dmag : float
+            Photometric distance between adjacent interpolated points.
+        dmod : float
+            Distance modulus (magnitudes).
+        gamma : float
+            Logarithmic IMF sloap (Salpeter = -1.35).
+        nmag : int
+            Number of bandpasses.
+        mag0 : int
+            Index (0-based) of reference magnitude for `faint` and `msto`.
+        iverb : int
+            Verbosity of `mklib`.
+            - 0 = silent
+            - 1 = screen messages
+            - 2 = extra output files
         """
         self._build_isofile()
-        subprocess.call('./mklib < input/lib.dat', shell=True)
-
-
+        self._build_libdat(**kwargs)
+        self._clean_isodir()
+        subprocess.call('./mklib < %s' % self._libdat_path, shell=True)
 
 
 def main():
