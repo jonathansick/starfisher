@@ -229,6 +229,129 @@ class Synth(object):
             f.write(txt)
 
 
+class Lockfile(object):
+    """Construct lockfiles for :class:`Synth`. Lockfiles tie several degenerate
+    isochrones together, reducing the dimensionality of the star formation
+    history space.
+
+    Parameters
+    ----------
+
+    synth_dir : str
+        Directory name of synthesized CMDs. E.g., `'synth'`.
+    isofile_path : str
+        Path to the `isofile` created by :class:`isolibrary.LibraryBuilder`.
+    """
+    def __init__(self, synth_dir, isofile_path):
+        super(Lockfile, self).__init__()
+        self.iso_dir = "iso"  # directory with installed isochrones
+        self.synth_dir = synth_dir
+        self.isofile_path = isofile_path
+        self._index_isochrones()
+        self._current_new_group_index = 0
+
+    def _index_isochrones(self):
+        """Build an index of installated ischrones, noting filename, age,
+        metallicity. The index includes an empty group index column.
+        """
+        # Read the isofile to get list of isochrones
+        t = Table.read(self.isofile_path, format='ascii.no_header',
+                names=['log(age)', 'path', 'output_path', 'msto'])
+        paths = t['output_path']
+        n_isoc = len(paths)
+        # The _index lists isochrones and grouping info for lockfile
+        dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
+            ('path', 'S40'), ('name', 'S40'),
+            ('z_str', 'S4'), ('age_str', 'S5')])
+        self._index = np.empty(n_isoc, dtype=dt)
+        for i, p in enumerate(paths):
+            z_str, age_str = os.path.basename(p)[1:].split('_')
+            Z = float("0." + z_str)
+            age = float(age_str)
+            print p, Z, age
+            self._index['age'][i] = age
+            self._index['Z'][i] = Z
+            self._index['z_str'][i] = z_str
+            self._index['age_str'][i] = age_str
+            self._index['path'][i] = p
+            self._index['name'][i] = " " * 40
+        self._index['group'][:] = 0
+
+    def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
+        """Lock together isochrones in a box in Age-Z space.
+        
+        Parameters
+        ----------
+
+        name : str
+            Name of the isochrone group. By convension this is `zXXXX_YY.YY`
+            where `XXXX` is the representative metallicity (fractional part)
+            and `YY.YY` is the log(age). This name is for primarily for your
+            record keeping/to help you identify synthesized CMDs.
+        age_span : sequence, (2,)
+            The (min, max) space of isochrone log(age) to include in group.
+            Note that span will be broadened by +/-`d_age`, so actual grid
+            values can be safely included.
+        z_span : sequence, (2,)
+            The (min, max) space of isochrone Z to include in group.
+            Note that span will be broadened by +/-`d_z`, so actual grid
+            values can be safely included.
+        d_age : float
+            Fuzz added to the box so that grid points at the edge of the age
+            span are included.
+        z_age : float
+            Fuzz added to the box so that grid points at the edge of the Z
+            span are included.
+        """
+        indices = np.where((self._index['age'] > min(age_span) - d_age)
+                & (self._index['age'] < max(age_span) + d_age)
+                & (self._index['Z'] > min(age_span) - d_z)
+                & (self._index['Z'] < max(age_span) + d_z))[0]
+        self._index['group'][indices] = self._current_new_group_index
+        stemname = os.path.join(self.synth_dir, name)
+        self._index['name'][indices] = stemname
+        self._current_new_group_index += 1
+
+    def _include_unlocked_isochrones(self):
+        """Creates single-isochrone groups for for isochrones that have
+        not otherwise been grouped.
+        """
+        indices = np.where(self._index['group'] == 0)[0]
+        for idx in indices:
+            name = "z%s_%s" % (self._index['z_str'][idx],
+                    self._index['age_str'][idx])
+            self._index['group'][idx] = self._current_new_group_index
+            stemname = os.path.join(self.synth_dir, name)
+            self._index['name'][idx] = stemname
+            self._current_new_group_index += 1
+
+    def write(self, path):
+        """Write the lockfile to path."""
+        self.lock_path = path
+        self._include_unlocked_isochrones()
+        self._write(path)
+
+    def _write(self, path):
+        """Write the lock file to `path`.
+        
+        Each row of the lockfile has the columns:
+
+        - group id[int]
+        - isoname[up to 40 characters]
+        - synthfilestem [up to 40 characters]
+        """
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname): os.makedirs(dirname)
+
+        t = Table(self._index)
+        t.write(path, format='ascii.no_header', delimiter=' ',
+                include_names=['group', 'path', 'name'])
+
+        # also make sure synth dir is ready
+        if not os.path.exists(self.synth_dir):
+            os.makedirs(self.synth_dir)
+
+
 def main():
     pass
 
