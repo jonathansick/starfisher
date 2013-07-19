@@ -352,6 +352,66 @@ class Lockfile(object):
             os.makedirs(self.synth_dir)
 
 
+class ExtinctionDistribution(object):
+    """Create an extinction distribution file for :class:`Synth`.
+    
+    Synthesized stars will have extinction values drawn randomly from samples
+    in the extintion distribution. Uniform extinction can be implemented by
+    using only one extinction value.
+
+    Attributes
+    ----------
+
+    path : str
+        Path to the extinction file (available once :meth:`write` is called).
+    """
+    def __init__(self):
+        super(ExtinctionDistribution, self).__init__()
+        self.path = None
+        self._extinction_array = None
+
+    def set_samples(self, extinction_array):
+        """Set a 1D array of extinction values.
+        
+        Parameters
+        ----------
+
+        extinction_array : ndarray, (n,)
+            A 1D array of extinction sample values (in magnitudes).
+        """
+        # TODO check shape of extinction array
+        self._extinction_array = extinction_array
+
+    def set_uniform(self, extinction):
+        """Set uniform extinction.
+        
+        Parameters
+        ----------
+
+        extinction : float
+            The uniform extinction value (in magnitudes).
+            I.e., set `extinction=0.` for no
+            extinction.
+        """
+        self._extinction_array = np.array([extinction])
+
+    def write(self, path):
+        """Write the extinction file to `path`.
+        
+        Parameters
+        ----------
+
+        path : str
+            Path where extinction file is written.
+        """
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname): os.makedirs(dirname)
+
+        t = Table([self._extinction_array], names=['A'])
+        t.write(path, format='ascii.no_header', delimiter=' ')
+        self.path = path
+
+
 def main():
     pass
 
