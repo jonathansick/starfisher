@@ -36,7 +36,7 @@ from astropy.version_helpers import get_git_devstr, generate_version_py
 # Set affiliated package-specific settings
 PACKAGENAME = 'starfisher'
 DESCRIPTION = 'Python tools for StarFISH star formation history decompositions.'
-# LONG_DESCRIPTION = ''  # TODO LONG_DESCRIPTION = starfisher.__doc__
+LONG_DESCRIPTION = ''  # TODO LONG_DESCRIPTION = starfisher.__doc__
 AUTHOR = 'Jonathan Sick'
 AUTHOR_EMAIL = 'jonathansick@mac.com'
 LICENSE = 'BSD'
