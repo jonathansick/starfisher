@@ -38,6 +38,10 @@ class LibraryBuilder(object):
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
 
+    @property
+    def isofile_path(self):
+        return self._isofile_path
+
     def _build_isofile(self):
         """Build an isofile, specifying each isochrone file.
         
@@ -97,6 +101,12 @@ class LibraryBuilder(object):
             - 1 = screen messages
             - 2 = extra output files
         """
+        self.faint = faint
+        self.dmag = dmag
+        self.dmod = dmod
+        self.gamma = gamma
+        self.nmag = nmag
+        self.mag0 = mag0
         datstr = "%s\n%.3f\n%.3f\n%.3f\n%.3f\n%i\n%i\n%i" % \
                 (self._isofile_path, faint, dmag, dmod, gamma,
                 nmag, mag0, iverb)
