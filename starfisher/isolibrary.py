@@ -24,23 +24,30 @@ class LibraryBuilder(object):
     input_dir : str
         Directory where input files are stored for the StarFISH run.
         Typically this is `'input'`.
-    isoc_prep_dir : str
+    isoc_src_dir : str
         Name of the directory with raw isochrones, relative to the root of
         the StarFISH directory.
     """
-    def __init__(self, input_dir, isoc_prep_dir):
+    def __init__(self, input_dir, isoc_src_dir):
         super(LibraryBuilder, self).__init__()
         self.input_dir = input_dir
-        self.isoc_prep_dir = isoc_prep_dir
+        self.isoc_src_dir = isoc_src_dir
         self._isofile_path = None
+        self._iso_dir = None
         self._libdat_pat = None
-        for dirname in (self.input_dir, self.isoc_prep_dir):
+        for dirname in (self.input_dir, self.isoc_src_dir):
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
 
     @property
     def isofile_path(self):
+        """Path to the ``isofile`` used by ``mklib``."""
         return self._isofile_path
+
+    @property
+    def library_dir(self):
+        """Path to directory with isochrones built by `mklib`."""
+        return self._iso_dir
 
     def _build_isofile(self):
         """Build an isofile, specifying each isochrone file.
@@ -62,20 +69,20 @@ class LibraryBuilder(object):
         t = Table(names=('log(age)', 'path', 'output_path', 'msto'),
                dtypes=('f4', 'S40', 'S40', 'f4'))
 
-        isoc_paths = glob.glob(os.path.join(self.isoc_prep_dir, "z*"))
+        isoc_paths = glob.glob(os.path.join(self.isoc_src_dir, "z*"))
         for p in isoc_paths:
             # exact Z and Age from filename convention
             z_str, age_str = os.path.basename(p)[1:].split('_')
             basepath = os.path.basename(p)
-            output_path = os.path.join("iso", basepath)
+            output_path = os.path.join(self._iso_dir, basepath)
             t.add_row((float(age_str), p, output_path, 100.))
         
-        self._isofile_path = os.path.join(self.isoc_prep_dir, "isofile")
+        self._isofile_path = os.path.join(self.isoc_src_dir, "isofile")
         if os.path.exists(self._isofile_path): os.remove(self._isofile_path)
         t.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
 
-    def _build_libdat(self, faint=30., dmag=0.005, dmod=0., gamma=-1.35,
-            nmag=2, mag0=1, iverb=0):
+    def _build_libdat(self, faint=30., dmag=0.005, dmod=0.,
+            gamma=-1.35, nmag=2, mag0=1, iverb=0):
         """Build the library data file, used by `mklib`.
 
         Parameters
@@ -119,17 +126,19 @@ class LibraryBuilder(object):
         """Remove pre-existing isochrones from the isochrone installation dir,
         `iso/`.
         """
-        paths = glob.glob(os.path.join('iso', 'z*'))
+        paths = glob.glob(os.path.join(self._iso_dir, 'z*'))
         for p in paths:
             os.remove(p)
 
-    def install(self, **kwargs):
-        """Runs `mklib` to install the parsed isochrones into StarFISH's
-        `iso/` directory.
+    def install(self, lib_dir='iso', **kwargs):
+        """Runs `mklib` to install the parsed isochrones into the isochrone
+        library directory.
 
         Parameters
         ----------
 
+        lib_dir : float
+            Directory where the isochrones will be installed by ``mklib``.
         faint : float
             Faint magnitude limit for output isochrone library (according to
             filter at `mag0` index). Should be several mag fainter than the
@@ -150,6 +159,9 @@ class LibraryBuilder(object):
             - 1 = screen messages
             - 2 = extra output files
         """
+        self._iso_dir = lib_dir
+        if not os.path.exists(self._iso_dir):
+            os.makedirs(self._iso_dir)
         self._build_isofile()
         self._build_libdat(**kwargs)
         self._clean_isodir()

@@ -241,10 +241,13 @@ class Lockfile(object):
         Directory name of synthesized CMDs. E.g., `'synth'`.
     isofile_path : str
         Path to the `isofile` created by :class:`isolibrary.LibraryBuilder`.
+    lib_dir : str
+        Directory where isochrones are installed by
+        :class:`isolibrary.LibraryBuilder`.
     """
-    def __init__(self, synth_dir, isofile_path):
+    def __init__(self, synth_dir, isofile_path, lib_dir):
         super(Lockfile, self).__init__()
-        self.iso_dir = "iso"  # directory with installed isochrones
+        self.iso_dir = lib_dir  # directory with installed isochrones
         self.synth_dir = synth_dir
         self.isofile_path = isofile_path
         self._index_isochrones()
