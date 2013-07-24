@@ -182,6 +182,7 @@ class Synth(object):
 
         lines.append(str(self.library_builder.nmag))
         lines.append(str(len(self._cmds)))
+        lines.append(str(self.library_builder.mag0))
 
         lines.append(str(self.dpix))
 
