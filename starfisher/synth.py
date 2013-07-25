@@ -55,8 +55,6 @@ class Synth(object):
         Verbosity flag (higher N = more output)
     interp_err : bool
         Set to `True` to interpolate errors between bracketing crowding bins.
-    analytic_errs : bool
-        Set to `True` to use analytic errors rather than artificial star tests.
     seed : int
         Seed value for StarFISH's random number generator.
     mass_span : tuple, length 2
@@ -67,8 +65,7 @@ class Synth(object):
     """
     def __init__(self, library_builder, lockfile, input_dir,
             rel_extinction, young_extinction=None, old_extinction=None,
-            dpix=0.05, nstars=1000000, verb=3,
-            interp_err=True, analytic_errs=False,
+            dpix=0.05, nstars=1000000, verb=3, interp_err=True,
             seed=256, mass_span=(0.5, 100.), fbinary=0.5):
         super(Synth, self).__init__()
         self.library_builder = library_builder
@@ -81,10 +78,10 @@ class Synth(object):
         self.nstars = nstars
         self.verb = verb
         self.interp_err = interp_err
-        self.analytic_errs = analytic_errs
         self.seed = seed
         self.mass_span = mass_span
         self.fbinary = fbinary
+        self.error_method = 1  # by default assume analytic errors
         self._cmds = []  # add_cmd() inserts data here
 
     def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix):
@@ -126,7 +123,7 @@ class Synth(object):
         self._cmds.append(cmd_def)
 
     def set_crowding_table(self, path, output_path, dbin, error_range,
-            binsize):
+            binsize, error_method=2):
         """Setup the artificial star test crowding table.
 
         Parameters
@@ -145,14 +142,21 @@ class Synth(object):
             errors for an artificial star to be considered recovered.
         binsize : float
             Binsize of delta-magnitude histograms.
+        error_method : int
+            Flag specifying the method for applying errors to the synthetic
+            CMD. Can be:
+
+            - 0 for regular crowding table lookup
+            - 2 for scatter crowding table lookup
         """
+        self.error_method = error_method
         self.crowding_path = path
         self.crowding_output_path = output_path
         self._crowd_config = {
                 "dbin": dbin,
                 "error_range": error_range,
                 "binsize": binsize}
-        self.analytic_errs = False
+        self.error_method = error_method
 
     def run_synth(self):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
@@ -212,10 +216,7 @@ class Synth(object):
         else:
             lines.append("0")
 
-        if self.analytic_errs:
-            lines.append("1")
-        else:
-            lines.append("0")
+        lines.append(str(self.error_method))
 
         lines.append(str(self.nstars))
         lines.append(str(self.seed))
