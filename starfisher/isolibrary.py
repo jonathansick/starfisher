@@ -6,6 +6,7 @@ Padova isochrones to running `mklib`.
 """
 
 import glob
+import logging
 import os
 import subprocess
 
@@ -78,8 +79,12 @@ class LibraryBuilder(object):
             t.add_row((float(age_str), p, output_path, 100.))
         
         self._isofile_path = os.path.join(self.isoc_src_dir, "isofile")
+        self._write_isofile(t)
+
+    def _write_isofile(self, tbl):
+        """Write the isofile table to `self.isofile_path`."""
         if os.path.exists(self._isofile_path): os.remove(self._isofile_path)
-        t.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
+        tbl.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
 
     def _build_libdat(self, faint=30., dmag=0.005, dmod=0.,
             gamma=-1.35, nmag=2, mag0=1, iverb=0):
@@ -166,6 +171,33 @@ class LibraryBuilder(object):
         self._build_libdat(**kwargs)
         self._clean_isodir()
         subprocess.call('./mklib < %s' % self._libdat_path, shell=True)
+        self._check_library()
+
+    def _check_library(self):
+        """Verifies that all isochrones written by `mklib` are valid (not
+        all NaN). Removes those isochrones from the isofile if necessary.
+        """
+        t = Table.read(self.isofile_path, format='ascii.no_header',
+                names=['log(age)', 'path', 'output_path', 'msto'])
+        remove_indices = []
+        for i, row in enumerate(t):
+            isvalid = self._check_lib_isochrone(row['output_path'])
+            if not isvalid:
+                remove_indices.append(i)
+                logging.warning("Installed isochrone contains NaNs: %s"
+                        % row['output_path'])
+        if len(remove_indices) > 0:
+            t.remove_rows(remove_indices)
+            self._write_isofile(t)
+    
+    def _check_lib_isochrone(self, isocpath):
+        """Check if `mklib` output isochrone file contains NaNs."""
+        with open(isocpath, 'r') as f:
+            for line in f:
+                if "nan" in line:
+                    return False
+        return True
+
 
 
 def main():
