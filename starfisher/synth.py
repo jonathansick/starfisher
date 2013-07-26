@@ -7,8 +7,13 @@ isochrone and CMD plane.
 
 import os
 import subprocess
+import logging
 
 import numpy as np
+import matplotlib as mpl
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib.gridspec as gridspec
 from astropy.table import Table
 
 
@@ -239,6 +244,87 @@ class Synth(object):
         txt = "\n".join(lines)
         with open(self._synth_config_path, 'w') as f:
             f.write(txt)
+
+    def plot_all_hess(self, plotdir, **plot_args):
+        """Plot Hess (binned CMD) diagrams of all synthetic CMD planes.
+        
+        Parameters
+        ----------
+
+        plotdir : str
+            Directory where plots will be saved.
+        format : str
+            Format of the plot (typically ``png``, ``pdf`` or ``eps).
+        dpi : int
+            Resolution of the output.
+        figsize : tuple
+            Size of matplotlib axes.
+        flipx : bool
+            Reverse orientation of x-axis if ``True``.
+        flipy : bool
+            Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
+        aspect : str
+            Controls aspect of the image axes. Set to ``auto`` for color-
+            magnitude digrams. For color-color diagrams where pixels must
+            have equal aspect, set to ``equal``.
+        """
+        t = Table.read(self.library_builder.isofile_path,
+                format='ascii.no_header',
+                names=['log(age)', 'path', 'output_path', 'msto'])
+        for row in t:
+            isocpath = row['output_path']
+            baseisocpath = os.path.basename(isocpath)
+            for cmd in self._cmds:
+                synth_path = os.path.join(self.lockfile.synth_dir,
+                        baseisocpath + cmd['suffix'])
+                plot_path = os.path.join(plotdir,
+                        baseisocpath + cmd['suffix'])
+                if not os.path.exists(synth_path):
+                    logging.error("%s does not exist" % synth_path)
+                    continue
+                self._plot_hess(synth_path, plot_path, cmd, **plot_args)
+
+    def _plot_hess(self, synth_path, plot_path, cmd, format="png", dpi=300,
+            figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
+        """Plot a Hess diagram for a single synthesized image."""
+        indata = np.loadtxt(synth_path)
+        nx = int((max(cmd['x_span']) - min(cmd['x_span'])) / self.dpix)
+        ny = int((max(cmd['y_span']) - min(cmd['y_span'])) / self.dpix)
+        hess = indata.reshape((ny, nx), order='C')
+
+        # extent format is (left, right, bottom, top)
+        if flipx:
+            extent = [max(cmd['x_span']), min(cmd['x_span'])]
+        else:
+            extent = [min(cmd['x_span']), max(cmd['x_span'])]
+        if flipy:
+            extent.extend([max(cmd['y_span']), min(cmd['y_span'])])
+        else:
+            extent.extend([min(cmd['y_span']), max(cmd['y_span'])])
+        if flipy:
+            origin = 'lower'
+        else:
+            origin = 'upper'
+
+        fig = Figure(figsize=figsize)
+        canvas = FigureCanvas(fig)
+        gs = gridspec.GridSpec(1, 1,
+            left=0.15, right=0.95, bottom=0.15, top=0.95,
+            wspace=None, hspace=None, width_ratios=None, height_ratios=None)
+        ax = fig.add_subplot(gs[0])
+        ax.imshow(hess, cmap=mpl.cm.gray_r, norm=None,
+                aspect=aspect,
+                interpolation='none',
+                extent=extent, origin=origin,
+                alpha=None, vmin=None, vmax=None)
+        ax.set_xlabel(cmd['x_label'])
+        ax.set_ylabel(cmd['y_label'])
+        title = synth_path
+        title = title.replace("_", "\_")
+        ax.text(0.1, 0.9, title, ha='left', va='baseline',
+                transform=ax.transAxes)
+        gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
+        canvas.print_figure(plot_path + "." + format, format=format, dpi=dpi)
 
 
 class Lockfile(object):
