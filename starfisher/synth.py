@@ -84,7 +84,8 @@ class Synth(object):
         self.error_method = 1  # by default assume analytic errors
         self._cmds = []  # add_cmd() inserts data here
 
-    def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix):
+    def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
+            xlabel="x", ylabel="y"):
         """Add a CMD plane for synthesis.
 
         Parameters
@@ -106,6 +107,14 @@ class Synth(object):
         suffix : str
             Label for this CMD. E.g., if this CMD is B-V, then the suffix
             should be `.bv`.
+        xlabel : str
+            Optional label for x-axis of this CMD. Used by `starfisher`'s
+            plotting methods to properly label axes. Can use matplotlib's
+            latex formatting.
+        ylabel : str
+            Optional label for y-axis of this CMD. Used by `starfisher`'s
+            plotting methods to properly label axes. Can use matplotlib's
+            latex formatting.
         """
         if not isinstance(x_mag, int):
             x_str = "-".join([str(i) for i in x_mag])
@@ -119,7 +128,8 @@ class Synth(object):
                 "x_str": x_str, "y_str": y_str,
                 "x_span": x_span, "y_span": y_span,
                 "y_crowding_max": y_crowding_max,
-                "suffix": suffix}
+                "suffix": suffix,
+                "x_label": xlabel, "y_label": ylabel}
         self._cmds.append(cmd_def)
 
     def set_crowding_table(self, path, output_path, dbin, error_range,
