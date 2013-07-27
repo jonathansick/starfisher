@@ -452,6 +452,33 @@ class Lockfile(object):
         if not os.path.exists(self.synth_dir):
             os.makedirs(self.synth_dir)
 
+    def write_cmdfile(self, path):
+        """Create the ``cmdfile`` needed by the ``sfh`` program.
+        
+        Parameters
+        ----------
+
+        path : str
+            Path where the ``cmdfile`` will be created.
+        """
+        colnames = ['Z', 'log(age)', 'path']
+        data = {cname: [] for cname in colnames}
+        ngroups = self._index.shape[0]
+        for i in xrange(ngroups):
+            if not os.path.exists(self._index['name'][i]):
+                logging.warning("Can't find %s" % self.index['name'][i])
+                continue
+            data['Z'] = self._index['Z'][i]
+            data['log(age)'] = self._index['age'][i]
+            data['path'] = self._index['name'][i]
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname): os.makedirs(dirname)
+        t = Table(data)
+        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
+                bookend=False, delimiter_path=None,
+                formats={"Z": "%6.4f", "log(age)": "%5.2f", "path": "%s"})
+
+
 
 class ExtinctionDistribution(object):
     """Create an extinction distribution file for :class:`Synth`.
