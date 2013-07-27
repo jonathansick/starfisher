@@ -6,6 +6,7 @@ isochrone and CMD plane.
 """
 
 import os
+import glob
 import subprocess
 import logging
 
@@ -98,6 +99,16 @@ class Synth(object):
     def n_isoc(self):
         """Number of isochrones being managed."""
         return self.lockfile.n_groups
+
+    @property
+    def n_active_isoc(self):
+        """Number of isochrone groups that have been realized by synth``.
+        
+        Isochrones that generated errors will be excluded here. This value
+        should be used as the input for ``sfh`` for the dimensionality
+        of the optimizations.
+        """
+        return len(self.lockfile.active_groups())
 
     def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
             xlabel="x", ylabel="y"):
@@ -468,6 +479,19 @@ class Lockfile(object):
         if not os.path.exists(self.synth_dir):
             os.makedirs(self.synth_dir)
 
+    def active_groups(self):
+        """Returns a list of groups that have CMD planes prepared by synth."""
+        active_groups = []
+        ngroups = self._index.shape[0]
+        for i in xrange(ngroups):
+            paths = glob.glob(self._index['name'][i] + "*")
+            if len(paths) > 0:
+                active_groups.append(self._index['name'][i])
+            else:
+                logging.warning("Can't find %s"
+                        % self._index['name'][i])
+        return active_groups
+
     def write_cmdfile(self, path):
         """Create the ``cmdfile`` needed by the ``sfh`` program.
         
@@ -477,22 +501,49 @@ class Lockfile(object):
         path : str
             Path where the ``cmdfile`` will be created.
         """
-        colnames = ['Z', 'log(age)', 'path']
-        data = {cname: [] for cname in colnames}
         ngroups = self._index.shape[0]
+        active_groups = self.active_groups()
+        ndata = np.empty(len(active_groups), dtype=np.dtype([('Z', np.float),
+            ('log(age)', np.float), ('path', 'S40')]))
+        j = 0
         for i in xrange(ngroups):
-            if not os.path.exists(self._index['name'][i]):
-                logging.warning("Can't find %s" % self.index['name'][i])
-                continue
-            data['Z'] = self._index['Z'][i]
-            data['log(age)'] = self._index['age'][i]
-            data['path'] = self._index['name'][i]
+            if self._index['name'][i] in active_groups:
+                ndata['Z'][j] = self._index['Z'][i]
+                ndata['log(age)'][j] = self._index['age'][i]
+                ndata['path'][j] = self._index['name'][i]
+                j += 1
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname): os.makedirs(dirname)
-        t = Table(data)
+        t = Table(ndata)
         t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
-                bookend=False, delimiter_path=None,
+                bookend=False, delimiter_pad=None,
+                names=['Z', 'log(age)', 'path'],
                 formats={"Z": "%6.4f", "log(age)": "%5.2f", "path": "%s"})
+
+    def write_holdfile(self, path):
+        """Write the ``holdfile`` needed by the ``sfh`` program.
+        
+        .. note:: Currently this hold file places no 'holds' on the star 
+           formation history optimization.
+        """
+        ngroups = self._index.shape[0]
+        active_groups = self.active_groups()
+        ndata = np.empty(len(active_groups), dtype=np.dtype([('amp', np.float),
+            ('Z', np.float), ('log(age)', np.float)]))
+        j = 0
+        for i in xrange(ngroups):
+            if self._index['name'][i] in active_groups:
+                ndata['amp'][j] = 0.
+                ndata['Z'][j] = self._index['Z'][i]
+                ndata['log(age)'][j] = self._index['age'][i]
+                j += 1
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname): os.makedirs(dirname)
+        t = Table(ndata)
+        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
+                bookend=False, delimiter_pad=None,
+                names=['amp', 'Z', 'log(age)'],
+                formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
 
 
 

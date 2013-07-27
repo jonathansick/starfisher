@@ -6,6 +6,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 """
 
 import os
+import subprocess
 
 import numpy as np
 import matplotlib as mpl
@@ -14,6 +15,107 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 
 from astropy.table import Table
+
+
+class SFH(object):
+    """Interface to the StarFISH ``sfh`` program.
+    
+    Parameters
+    ----------
+
+    data_root : str
+        Root filename of the photometry data (the full path minus the suffix
+        for each CMD plane).
+    synth : :class:`synth.Synth` instance
+        The instance of :class:`synth.Synth` used to prepare the synthetic
+        CMDs.
+    mask : :class:`sfh.Mask` instance 
+        The instance of :class:`sfh.Mask` specifying how each CMD plane
+        should be masked.
+    input_dir : str
+        Direcory where input files are stored for the StarFISH run.
+    """
+    def __init__(self, data_root, synth, mask, input_dir):
+        super(SFH, self).__init__()
+        self.data_root = data_root
+        self.synth = synth
+        self.mask = mask
+        self.input_dir = input_dir
+        self._sfh_config_path = os.path.join(self.input_dir, "sfh.dat")
+        self._outfile_path = os.path.join(self.input_dir, "output.dat")
+        self._hold_path = os.path.join(self.input_dir, "hold.dat")
+        self._log_path = os.path.join(self.input_dir, "sfh.log")
+        self._plg_path = os.path.join(self.input_dir, "plg.log")
+        self._chi_path = os.path.join(self.input_dir, "chi.txt")
+
+    def run_sfh(self):
+        """Run the StarFISH `sfh` software."""
+        self.cmd_path = os.path.join(self.input_dir, "cmd.txt")
+        self.synth.lockfile.write_cmdfile(self.cmd_path)
+        self.synth.lockfile.write_holdfile(self._hold_path)
+        self.mask.write()
+        self._write_sfh_input()
+        subprocess.call("./sfh < %s" % self._sfh_config_path, shell=True)
+
+    def _write_sfh_input(self):
+        """Write the SFH input file."""
+        if os.path.exists(self._sfh_config_path):
+            os.remove(self._sfh_config_path)
+
+        lines = []
+
+        # Filenames
+        lines.append(self.data_root)  # datpre
+        lines.append(self.cmd_path)  # cmdfile
+        lines.append(self.mask.mask_path)  # maskfile
+        lines.append(self._hold_path)  # hold file (needs to be created)
+        lines.append(self._outfile_path)  # output
+        lines.append(self._log_path)  # log
+        lines.append(self._plg_path)  # plg
+        lines.append(self._chi_path)  # chi
+
+        # Synth CMD parameters
+        # number of independent isochrones
+        # TODO modified by the holdfile?
+        lines.append(str(self.synth.n_active_isoc))
+        lines.append(str(self.synth.n_cmd))
+        lines.append("1")  # binning factor between synth and CMD pixels
+        lines.append(str(self.synth.dpix))
+
+        # Parameters for each CMD
+        # TODO likely want a better accessor here for Synth's CMDs
+        for cmd in self.synth._cmds:
+            lines.append(cmd['suffix'])
+            lines.append("%.2f" % min(cmd['x_span']))
+            lines.append("%.2f" % max(cmd['x_span']))
+            lines.append("%.2f" % min(cmd['y_span']))
+            lines.append("%.2f" % max(cmd['y_span']))
+            nx = int((max(cmd['x_span']) - min(cmd['x_span']))
+                    / self.synth.dpix)
+            ny = int((max(cmd['y_span']) - min(cmd['y_span']))
+                    / self.synth.dpix)
+            nbox = nx * ny
+            lines.append(str(nbox))
+
+        # Runtime parameters
+        # TODO enable user customization here
+        lines.append("256")  # seed
+        lines.append("2")  # Use Poisson fit statistic
+        lines.append("0")  # don't start from a logged position
+        lines.append("0")  # don't generate plg file of all tested positions
+        lines.append("0")  # uniform grid
+        lines.append("3")  # verbosity
+        lines.append("1000.00")  # lambda; initial simplex size
+        lines.append("68.0")  # error bars are at 1 sigma confidence level
+        lines.append("1.000")  # threshold delta-chi**2
+        lines.append("10.00")  # required parameter tolerance
+        lines.append("0.0000001")  # required fit_stat tolerance
+        lines.append("10000")  # number of parameter directions to search
+        lines.append("3")  # number of iterations for determining errorbars
+
+        txt = "\n".join(lines)
+        with open(self._sfh_config_path, 'w') as f:
+            f.write(txt)
 
 
 class Mask(object):
@@ -69,8 +171,8 @@ class Mask(object):
         mskdata = np.concatenate(tuple(self._cmds))
         t = Table(mskdata)
         t.write(self.mask_path, format="ascii.fixed_width_no_header",
-                delimiter=' ', bookend=False, delimiter_path=None,
-                names=['icmd', 'ibox', 'maskflag'],
+                delimiter=' ', bookend=False, delimiter_pad=None,
+                include_names=['icmd', 'ibox', 'maskflag'],
                 formats={"icmd": "%i", "ibox": "%i", "maskflag": "%i"})
 
     def plot_cmd_mask(self, index, output_path, xspan, yspan, dpix,

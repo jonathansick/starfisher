@@ -65,6 +65,7 @@ class LibraryBuilder(object):
         self.gamma = gamma
         self.nmag = nmag
         self.mag0 = mag0
+        self.iverb = iverb
         for dirname in (self.input_dir, self.isoc_src_dir, self._iso_dir):
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
