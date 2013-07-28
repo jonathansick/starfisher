@@ -89,6 +89,16 @@ class Synth(object):
         self.error_method = 1  # by default assume analytic errors
         self._cmds = []  # add_cmd() inserts data here
 
+    @property
+    def n_cmd(self):
+        """Number of CMD planes."""
+        return len(self._cmds)
+
+    @property
+    def n_isoc(self):
+        """Number of isochrones being managed."""
+        return self.lockfile.n_groups
+
     def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
             xlabel="x", ylabel="y"):
         """Add a CMD plane for synthesis.
@@ -377,6 +387,12 @@ class Lockfile(object):
             self._index['path'][i] = p
             self._index['name'][i] = " " * 40
         self._index['group'][:] = 0
+
+    @property
+    def n_groups(self):
+        """Number of isochrone groups."""
+        groups = self._index['group'][:]
+        return np.unique(groups).shape[0]
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
