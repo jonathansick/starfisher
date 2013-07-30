@@ -14,7 +14,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 
-from astropy.table import Table
+from astropy.table import Table, Column
 
 
 class SFH(object):
@@ -116,6 +116,54 @@ class SFH(object):
         txt = "\n".join(lines)
         with open(self._sfh_config_path, 'w') as f:
             f.write(txt)
+
+    def solution_table(self, avgmass=1.628):
+        """Returns a `class`:astropy.table.Table of the derived star formation
+        history.
+
+        This is based on the ``sfh.sm`` script distributed with StarFISH.
+
+        Parameters
+        ----------
+
+        avgmass : float
+            Average mass of the stellar population; given the IMF. For a
+            Salpeter IMF this is 1.628.
+        """
+        # read in time interval table (produced by lockfile)
+        dt = self.synth.lockfile.group_dt()
+
+        # read sfh output
+        t = Table.read(self._outfile_path,
+               format="ascii.fixed_width_no_header",
+               names=['Z', 'log(age)',
+                   'amp_nstars', 'amp_nstars_n', 'amp_nstars_p'])
+
+        # Open a photometry file to count stars
+        dataset_path = self.data_root + self.synth._cmds[0]['suffix']
+        _catalog = np.loadtxt(dataset_path)
+        nstars = _catalog.shape[0]
+
+        # Renormalize to SFR (Msun/yr)
+        # (Amps in the SFH file have units Nstars.)
+        ep = (t['amp_nstars_p'] - t['amp_nstars']) * avgmass / dt
+        en = (t['amp_nstars'] - t['amp_nstars_n']) * avgmass / dt
+        sfr = t['amp_nstars'] * avgmass / dt
+
+        # Include Poisson errors in errorbars
+        snstars = np.sqrt(float(nstars))
+        _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) * nstars * 2.)
+        sap = ep + _foo
+        san = en + _foo
+        # Truncate error bars if they extend below zero
+        san[san < 0.] = 0.
+
+        csfr = Column(sfr, name='sfr', unit='M_solar/yr')
+        csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
+        csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
+        t.add_columns([csfr, csap, csan])
+
+        return t
 
 
 class Mask(object):
