@@ -11,6 +11,7 @@ import subprocess
 import logging
 
 import numpy as np
+from scipy.stats import mode
 import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -194,12 +195,12 @@ class Synth(object):
                 "binsize": binsize}
         self.error_method = error_method
 
-    def run_synth(self):
+    def run_synth(self, include_unlocked=False):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
-        self._write()
+        self._write(include_unlocked=include_unlocked)
         subprocess.call("./synth < %s" % self._synth_config_path, shell=True)
 
-    def _write(self):
+    def _write(self, include_unlocked=False):
         """Write the `synth` input file."""
         self._synth_config_path = os.path.join(self.input_dir, "synth.dat")
         if os.path.exists(self._synth_config_path):
@@ -208,7 +209,8 @@ class Synth(object):
         lines = []
         lines.append(self.library_builder.isofile_path)
 
-        self.lockfile.write(os.path.join(self.input_dir, "lock.dat"))
+        self.lockfile.write(os.path.join(self.input_dir, "lock.dat"),
+                include_unlocked=include_unlocked)
         lines.append(self.lockfile.lock_path)
         
         self.young_extinction.write(os.path.join(self.input_dir, "young.av"))
@@ -384,19 +386,19 @@ class Lockfile(object):
         # The _index lists isochrones and grouping info for lockfile
         dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
             ('path', 'S40'), ('name', 'S40'),
-            ('z_str', 'S4'), ('age_str', 'S5')])
+            ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float)])
         self._index = np.empty(n_isoc, dtype=dt)
         for i, p in enumerate(paths):
             z_str, age_str = os.path.basename(p)[1:].split('_')
             Z = float("0." + z_str)
             age = float(age_str)
-            print p, Z, age
             self._index['age'][i] = age
             self._index['Z'][i] = Z
             self._index['z_str'][i] = z_str
             self._index['age_str'][i] = age_str
             self._index['path'][i] = p
             self._index['name'][i] = " " * 40
+            self._index['dt'][i] = np.nan
         self._index['group'][:] = 0
 
     @property
@@ -419,7 +421,9 @@ class Lockfile(object):
         age_span : sequence, (2,)
             The (min, max) space of isochrone log(age) to include in group.
             Note that span will be broadened by +/-`d_age`, so actual grid
-            values can be safely included.
+            values can be safely included. This age span will also be used to
+            determine the timespan an isochrone group is effective for; this
+            is used in star formation rate calculations.
         z_span : sequence, (2,)
             The (min, max) space of isochrone Z to include in group.
             Note that span will be broadened by +/-`d_z`, so actual grid
@@ -438,6 +442,8 @@ class Lockfile(object):
         self._index['group'][indices] = self._current_new_group_index
         stemname = os.path.join(self.synth_dir, name)
         self._index['name'][indices] = stemname
+        dt = 10. ** max(age_span) - 10. ** min(age_span)  # span in years
+        self._index['dt'][indices] = dt
         self._current_new_group_index += 1
 
     def _include_unlocked_isochrones(self):
@@ -445,18 +451,48 @@ class Lockfile(object):
         not otherwise been grouped.
         """
         indices = np.where(self._index['group'] == 0)[0]
+        grid_dt = self._estimate_age_grid()
         for idx in indices:
             name = "z%s_%s" % (self._index['z_str'][idx],
                     self._index['age_str'][idx])
             self._index['group'][idx] = self._current_new_group_index
             stemname = os.path.join(self.synth_dir, name)
             self._index['name'][idx] = stemname
+            logage = self._index['age'][idx]
+            dt = 10. ** (logage + grid_dt / 2.) - 10. ** (logage - grid_dt / 2.)
+            self._index['dt'][idx] = dt  # years
             self._current_new_group_index += 1
 
-    def write(self, path):
-        """Write the lockfile to path."""
+    def _estimate_age_grid(self):
+        """Assuming that ischrones are sampled from a regular grid of log(age),
+        this method finds the cell size of that log(age) grid.
+        """
+        unique_age_str, indices = np.unique(self._index['age_str'],
+                return_index=True)
+        age_grid = self._index['age'][indices]
+        sort = np.argsort(age_grid)
+        age_grid = age_grid[sort]
+        diffs = np.diff(age_grid)
+        dage = mode(diffs)[0][0]
+        return float(dage)
+
+    def write(self, path, include_unlocked=False):
+        """Write the lockfile to path.
+        
+        Parameters
+        ----------
+
+        path : str
+            Filename of lockfile.
+        include_unlocked : bool
+            If `True` then any isochrones not formally included in a
+            group will be automatically placed in singleton groups. If
+            `False` then these isochrones are omitted from ``synth`` and
+            other StarFISH computations.
+        """
         self.lock_path = path
-        self._include_unlocked_isochrones()
+        if include_unlocked:
+            self._include_unlocked_isochrones()
         self._write(path)
 
     def _write(self, path):
@@ -545,6 +581,30 @@ class Lockfile(object):
                 names=['amp', 'Z', 'log(age)'],
                 formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
 
+    def group_dt(self, active_only=True):
+        """Return an array of time spans associated with each isochrone group,
+        in the same order as isochrones appear in the lockfile.
+
+        The time spans are in years, and are used to determine star formation
+        rates.
+
+        Parameters
+        ----------
+
+        active_only : bool
+            If `True`, then only active isochrones (those run through synth)
+            are included. This is the desired behaviour when computing
+            star foramtion histories after a ``sfh`` run.
+        """
+        ngroups = self._index.shape[0]
+        active_groups = self.active_groups()
+        dt = np.zeros(len(active_groups))
+        j = 0
+        for i in xrange(ngroups):
+            if self._index['name'][i] in active_groups:
+                dt[j] = self._index['dt'][i]
+                j += 1
+        return dt
 
 
 class ExtinctionDistribution(object):
