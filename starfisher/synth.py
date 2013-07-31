@@ -382,7 +382,7 @@ class Lockfile(object):
         self.synth_dir = synth_dir
         self.isofile_path = isofile_path
         self._index_isochrones()
-        self._current_new_group_index = 0
+        self._current_new_group_index = 1
 
     def _index_isochrones(self):
         """Build an index of installated ischrones, noting filename, age,
@@ -416,6 +416,83 @@ class Lockfile(object):
         """Number of isochrone groups."""
         groups = self._index['group'][:]
         return np.unique(groups).shape[0]
+
+    def lock_grid(self, age_grid, z_groups=None):
+        """An easy-to-use method for locking isochrones according to an
+        age and metallicity grid specified by the user.
+
+        Parameters
+        ----------
+
+        age_grid : ndarray
+            1D array of log(age) grid *edges*. The first age group spans
+            from ``age_grid[0]`` to ``age_grid[1]``, while the last age group
+            spans from ``age_grid[:2]`` to ``age_grid[:1]``. Thus ``age_grid``
+            is 1-longer than the number of age bins.
+        z_groups : list of tuples
+            This allows metallicities to be locked together. Each metallicity
+            group is a tuple in a list. The tuple consists of the ``z_code``
+            for each metallicity (that is, the ``str`` ``XXXX``, giving the
+            fractional part of the metallicity. Metallicities appearing
+            alone are given as single-item tuples. Metallicites not included
+            in the list are ommitted.
+
+            If left as ``None``, then isochrones of distinct metallicities
+            will not be locked together, and all metallicities will be used.
+        """
+        if z_groups == None:
+            # Make a default listing of all Z groups, unbinned
+            unique_z, unique_indices = np.unique(self._index['z_str'],
+                    return_index=True)
+            zvals = self._index['Z'][unique_indices]
+            sort = np.argsort(zvals)
+            unique_z = unique_z[sort]
+            z_groups = [(zstr,) for zstr in unique_z]
+        # print "z_groups", z_groups
+
+        for z_group in z_groups:
+            zsels = [np.where(self._index['z_str'] == zstr)[0]
+                for zstr in z_group]
+            zsel = np.concatenate(zsels)
+            ages = self._index['age'][zsel]
+            # Bin ages in this metallicity group
+            indices = np.digitize(ages, age_grid,right=False)
+            # Unique bin values to iterate through
+            unique_bin_vals, inverse_indices = np.unique(indices,
+                    return_inverse=True)
+            # print "z_group", z_group
+            # print "ages", len(ages), ages
+            # print "indices", len(indices), indices
+            # print "unique_bin_vals", len(unique_bin_vals), unique_bin_vals
+            # print "inverse_indices", len(inverse_indices), inverse_indices
+            _all_indices = np.arange(len(self._index), dtype=np.int)
+            for i, binval in enumerate(unique_bin_vals):
+                # print "binval", binval
+                agesel = np.where(indices == binval)[0]
+                sel = np.copy(_all_indices[zsel][agesel])
+                age_start = age_grid[i]
+                age_stop = age_grid[i + 1]
+                # print "agesel", agesel
+                # print "age range", age_start, age_stop
+                # print "ages", self._index['age_str'][sel]
+                # print "metallicities", self._index['z_str'][sel]
+                binages = self._index['age'][sel]
+                binz = self._index['Z'][sel]
+                mean_age = binages.mean()
+                mean_z = binz.mean()
+                dt = 10. ** age_stop - 10. ** age_start
+                age_str = "%05.2f" % mean_age
+                z_str = "%.4f" % mean_z
+                z_str = z_str[2:]
+                stemname = os.path.join(self.synth_dir,
+                        "z%s_%s" % (z_str, age_str))
+                # print "stemname", stemname
+                self._index['group'][sel] = self._current_new_group_index
+                self._index['name'][sel] = stemname
+                self._index['dt'][sel] = dt
+                self._current_new_group_index += 1
+                # print self._index['dt'][sel]
+                # print self._index['name'][sel]
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
