@@ -172,7 +172,7 @@ class Mask(object):
         super(Mask, self).__init__()
         self.mask_path = mask_path
         self._cmds = []  # Masks for each CMD
-        self._current_cmd_index = 0
+        self._current_cmd_index = 1
 
     def init_cmd(self, xspan, yspan, dpix):
         """Add a CMD to mask.
