@@ -198,6 +198,7 @@ class Synth(object):
     def run_synth(self, include_unlocked=False):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
         self._write(include_unlocked=include_unlocked)
+        self._clean()
         subprocess.call("./synth < %s" % self._synth_config_path, shell=True)
 
     def _write(self, include_unlocked=False):
@@ -267,6 +268,13 @@ class Synth(object):
         txt = "\n".join(lines)
         with open(self._synth_config_path, 'w') as f:
             f.write(txt)
+
+    def _clean(self):
+        """Remove existing synthetic CMDs."""
+        synthdir = self.lockfile.synth_dir
+        paths = glob.glob(os.path.join(synthdir, "z*"))
+        for path in paths:
+            os.remove(path)
 
     def plot_all_hess(self, plotdir, **plot_args):
         """Plot Hess (binned CMD) diagrams of all synthetic CMD planes.
