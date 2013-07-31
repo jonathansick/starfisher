@@ -299,6 +299,8 @@ class Synth(object):
             magnitude digrams. For color-color diagrams where pixels must
             have equal aspect, set to ``equal``.
         """
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
         t = Table.read(self.library_builder.isofile_path,
                 format='ascii.no_header',
                 names=['log(age)', 'path', 'output_path', 'msto'])
