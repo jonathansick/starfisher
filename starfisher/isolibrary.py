@@ -166,6 +166,8 @@ class LibraryBuilder(object):
             for line in f:
                 if "nan" in line:
                     return False
+                elif "NaN" in line:
+                    return False
         return True
 
 
