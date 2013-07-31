@@ -595,8 +595,10 @@ class Lockfile(object):
         if not os.path.exists(dirname): os.makedirs(dirname)
 
         t = Table(self._index)
-        t.write(path, format='ascii.no_header', delimiter=' ',
-                include_names=['group', 'path', 'name'])
+        t.write(path, format='ascii.fixed_width_no_header', delimiter=' ',
+                bookend=False, delimiter_pad=None,
+                include_names=['group', 'path', 'name'],
+                formats={"group": "%03i", "path": "%s", "name": "%s"})
 
         # also make sure synth dir is ready
         if not os.path.exists(self.synth_dir):
