@@ -97,19 +97,14 @@ class Synth(object):
         return len(self._cmds)
 
     @property
-    def n_isoc(self):
-        """Number of isochrones being managed."""
-        return self.lockfile.n_groups
-
-    @property
-    def n_active_isoc(self):
+    def n_active_groups(self):
         """Number of isochrone groups that have been realized by synth``.
         
         Isochrones that generated errors will be excluded here. This value
         should be used as the input for ``sfh`` for the dimensionality
         of the optimizations.
         """
-        return len(self.lockfile.active_groups())
+        return len(self.lockfile.active_groups)
 
     def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
             xlabel="x", ylabel="y"):
@@ -412,10 +407,17 @@ class Lockfile(object):
         self._index['group'][:] = 0
 
     @property
-    def n_groups(self):
-        """Number of isochrone groups."""
-        groups = self._index['group'][:]
-        return np.unique(groups).shape[0]
+    def active_groups(self):
+        """Returns a list of groups that have CMD planes prepared by synth."""
+        active_groups = []
+        names = np.unique(self._index['name'])
+        for name in names:
+            paths = glob.glob(name + "*")
+            if len(paths) > 0:
+                active_groups.append(name)
+            else:
+                logging.warning("Can't find %s" % name)
+        return active_groups
 
     def lock_grid(self, age_grid, z_groups=None):
         """An easy-to-use method for locking isochrones according to an
@@ -604,19 +606,6 @@ class Lockfile(object):
         if not os.path.exists(self.synth_dir):
             os.makedirs(self.synth_dir)
 
-    def active_groups(self):
-        """Returns a list of groups that have CMD planes prepared by synth."""
-        active_groups = []
-        ngroups = self._index.shape[0]
-        for i in xrange(ngroups):
-            paths = glob.glob(self._index['name'][i] + "*")
-            if len(paths) > 0:
-                active_groups.append(self._index['name'][i])
-            else:
-                logging.warning("Can't find %s"
-                        % self._index['name'][i])
-        return active_groups
-
     def write_cmdfile(self, path):
         """Create the ``cmdfile`` needed by the ``sfh`` program.
         
@@ -627,7 +616,7 @@ class Lockfile(object):
             Path where the ``cmdfile`` will be created.
         """
         ngroups = self._index.shape[0]
-        active_groups = self.active_groups()
+        active_groups = self.active_groups
         ndata = np.empty(len(active_groups), dtype=np.dtype([('Z', np.float),
             ('log(age)', np.float), ('path', 'S40')]))
         j = 0
@@ -670,29 +659,18 @@ class Lockfile(object):
                 names=['amp', 'Z', 'log(age)'],
                 formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
 
-    def group_dt(self, active_only=True):
+    def group_dt(self):
         """Return an array of time spans associated with each isochrone group,
         in the same order as isochrones appear in the lockfile.
 
         The time spans are in years, and are used to determine star formation
         rates.
-
-        Parameters
-        ----------
-
-        active_only : bool
-            If `True`, then only active isochrones (those run through synth)
-            are included. This is the desired behaviour when computing
-            star foramtion histories after a ``sfh`` run.
         """
-        ngroups = self._index.shape[0]
-        active_groups = self.active_groups()
+        active_groups = self.active_groups
         dt = np.zeros(len(active_groups))
-        j = 0
-        for i in xrange(ngroups):
-            if self._index['name'][i] in active_groups:
-                dt[j] = self._index['dt'][i]
-                j += 1
+        for i, groupname in enumerate(active_groups):
+            idx = np.where(self._index['name'] == groupname)[0][0]
+            dt[i] = self._index['dt'][idx]
         return dt
 
 

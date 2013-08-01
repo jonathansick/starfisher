@@ -77,7 +77,7 @@ class SFH(object):
         # Synth CMD parameters
         # number of independent isochrones
         # TODO modified by the holdfile?
-        lines.append(str(self.synth.n_active_isoc))
+        lines.append(str(self.synth.n_active_groups))
         lines.append(str(self.synth.n_cmd))
         lines.append("1")  # binning factor between synth and CMD pixels
         lines.append(str(self.synth.dpix))
