@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Tools for plotting star formation histories.
+"""
+
+import matplotlib as mpl
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib.gridspec as gridspec
+
+
+class SFHCirclePlot(object):
+    """Plot SFH amplitudes as circular areas in an age vs metallicity plot.
+    
+    Parameters
+    ----------
+
+    sfh_table : :class:`astropy.table.Table` instance
+        The SFH solution table generated via :meth:`sfh.SFH.solution_table`.
+        This is an Astropy :class:`Table` instance.
+    """
+    def __init__(self, sfh_table):
+        super(SFHCirclePlot, self).__init__()
+        self._table = sfh_table
+
+    @staticmethod
+    def z_tick_formatter():
+        """Formatter for metallicity axis."""
+        return mpl.ticker.FormatStrFormatter("%.3f")
+
+    @staticmethod
+    def age_tick_formatter():
+        """Formatter for log(age) axis."""
+        return mpl.ticker.FormatStrFormatter("%4.1f")
+
+    def plot_in_ax(self, ax, max_area=200.):
+        """Plot the SFH in the given axes.
+        
+        Parameters
+        ----------
+
+        ax : matplotlib `Axes` instance
+            The axes to plot into.
+        max_area : float
+            Area in square-points of the largest circle, corresponding
+            to the highest star formation rate component of the CMD.
+            Tweak this value to make a plot that neither oversaturates,
+            nor produces points too small to see.
+        """
+        scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
+        ax.scatter(self._table['log(age)'], self._table['Z'], s=scaled_area,
+                c='k', marker='o', linewidths=0.)
+        ax.set_xlabel(r"$\log(A)$")
+        ax.set_ylabel(r"$Z$")
+        ax.xaxis.set_major_formatter(self.age_tick_formatter())
+        ax.yaxis.set_major_formatter(self.z_tick_formatter())
+        ax.set_ylim(0.0, 0.035)
+        ax.set_xlim(6.45, 10.55)
+        return ax
+
+    def plot(self, path, figsize=(4.5, 3.5), format='pdf', plotargs={}):
+        """Construct and save SFH plot to ``path``.
+        
+        Parameters
+        ----------
+
+        path : str
+            Path where the plot will be saved. Do not include the format
+            suffix.
+        figsize : tuple
+            The ``(width, height)`` size of the figure, in inches.
+        format : str
+            Suffix of the format. E.g. ``pdf`` or ``png``.
+        plotargs : dict
+            Dictionary of keyword arguments passed to :meth:`plot_in_ax`.
+        """
+        fig = Figure(figsize=figsize)
+        canvas = FigureCanvas(fig)
+        gs = gridspec.GridSpec(1, 1, left=0.18, right=0.95, bottom=0.15,
+                top=0.95, wspace=None, hspace=None,
+                width_ratios=None, height_ratios=None)
+        ax = fig.add_subplot(gs[0])
+        self.plot_in_ax(ax, **plotargs)
+        gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
+        canvas.print_figure(path + "." + format, format=format)
+
+
+def main():
+    pass
+
+
+if __name__ == '__main__':
+    main()
