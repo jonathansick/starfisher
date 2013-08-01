@@ -131,7 +131,10 @@ class LibraryBuilder(object):
         sel : ndarray
             Numpy index array, selecting isochrones.
         """
-        t = self._build_isofile_table()
+        # Read the actual isofile because it has already been edited
+        # for bad isochrones
+        t = Table.read(self._isofile_path, format='ascii.no_header',
+                names=['log(age)', 'path', 'output_path', 'msto'])
         t2 = t[sel]
         t2.write(path, format='ascii.no_header', delimiter=' ')
 
