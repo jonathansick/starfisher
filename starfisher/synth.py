@@ -203,12 +203,15 @@ class Synth(object):
         self._synth_config_path = os.path.join(self.input_dir, "synth.dat")
         if os.path.exists(self._synth_config_path):
             os.remove(self._synth_config_path)
-
-        lines = []
-        lines.append(self.library_builder.isofile_path)
-
+        
+        # Prep lock file and edited isofile
         self.lockfile.write(os.path.join(self.input_dir, "lock.dat"),
                 include_unlocked=include_unlocked)
+
+        # Create each line of synth input
+        lines = []
+
+        lines.append(self.lockfile.synth_isofile_path)  # matches lockfile
         lines.append(self.lockfile.lock_path)
         
         self.young_extinction.write(os.path.join(self.input_dir, "young.av"))
@@ -362,19 +365,18 @@ class Lockfile(object):
     Parameters
     ----------
 
+    library_builder : :class:`isolibrary.LibraryBuilder` instance
+        The instance of :class:`isolibrary.LibraryBuilder` used to prepare the
+        isochrone library
     synth_dir : str
         Directory name of synthesized CMDs. E.g., `'synth'`.
-    isofile_path : str
-        Path to the `isofile` created by :class:`isolibrary.LibraryBuilder`.
-    lib_dir : str
-        Directory where isochrones are installed by
-        :class:`isolibrary.LibraryBuilder`.
     """
-    def __init__(self, synth_dir, isofile_path, lib_dir):
+    def __init__(self, library_builder, synth_dir):
         super(Lockfile, self).__init__()
-        self.iso_dir = lib_dir  # directory with installed isochrones
+        self.library_builder = library_builder
+        self.iso_dir = library_builder.library_dir
         self.synth_dir = synth_dir
-        self.isofile_path = isofile_path
+        self.isofile_path = library_builder.isofile_path
         self._index_isochrones()
         self._current_new_group_index = 1
 
@@ -621,6 +623,11 @@ class Lockfile(object):
                 bookend=False, delimiter_pad=None,
                 include_names=['group', 'path', 'name'],
                 formats={"group": "%03i", "path": "%s", "name": "%s"})
+
+        # Also write the edited isofile
+        self.synth_isofile_path = self.library_builder.isofile_path + ".synth"
+        self.library_builder.write_edited_isofile(self.synth_isofile_path,
+                sel)
 
         # also make sure synth dir is ready
         if not os.path.exists(self.synth_dir):

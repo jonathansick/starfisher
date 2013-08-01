@@ -80,7 +80,7 @@ class LibraryBuilder(object):
         """Path to directory with isochrones built by `mklib`."""
         return self._iso_dir
 
-    def _build_isofile(self):
+    def _build_isofile_table(self):
         """Build an isofile, specifying each isochrone file.
         
         Parsed isochrone files are named `z001_06.60`, for example, meaning
@@ -108,12 +108,32 @@ class LibraryBuilder(object):
             output_path = os.path.join(self._iso_dir, basepath)
             t.add_row((float(age_str), p, output_path, 100.))
         
-        self._write_isofile(t)
+        return t
 
     def _write_isofile(self, tbl):
         """Write the isofile table to `self.isofile_path`."""
         if os.path.exists(self._isofile_path): os.remove(self._isofile_path)
         tbl.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
+
+    def write_edited_isofile(self, path, sel):
+        """Write a new version of the `isofile`, included only isochrones
+        included in the `sel` index.
+        
+        This method is intended to by used by `synth` to create a version
+        of the `isofile` that only has as many isochrones as are included
+        in the `lockfile`.
+
+        Parameters
+        ----------
+
+        path : str
+            Filepath of the new isofile.
+        sel : ndarray
+            Numpy index array, selecting isochrones.
+        """
+        t = self._build_isofile_table()
+        t2 = t[sel]
+        t2.write(path, format='ascii.no_header', delimiter=' ')
 
     def _build_libdat(self):
         """Build the library data file, used by `mklib`.
@@ -137,7 +157,8 @@ class LibraryBuilder(object):
         """Runs `mklib` to install the parsed isochrones into the isochrone
         library directory.
         """
-        self._build_isofile()
+        tbl = self._build_isofile_table()
+        self._write_isofile(tbl)
         self._build_libdat()
         self._clean_isodir()
         subprocess.call('./mklib < %s' % self._libdat_path, shell=True)
