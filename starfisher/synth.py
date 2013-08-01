@@ -451,32 +451,37 @@ class Lockfile(object):
             z_groups = [(zstr,) for zstr in unique_z]
         # print "z_groups", z_groups
 
+        len_age_grid = len(age_grid)
         for z_group in z_groups:
+            print "z_group", z_group
             zsels = [np.where(self._index['z_str'] == zstr)[0]
                 for zstr in z_group]
             zsel = np.concatenate(zsels)
+            if zsel.shape[0] == 0:
+                logging.warning("No isochrones for z_group: %s" % z_group)
+                continue
             ages = self._index['age'][zsel]
             # Bin ages in this metallicity group
             indices = np.digitize(ages, age_grid,right=False)
             # Unique bin values to iterate through
-            unique_bin_vals, inverse_indices = np.unique(indices,
-                    return_inverse=True)
-            # print "z_group", z_group
-            # print "ages", len(ages), ages
-            # print "indices", len(indices), indices
-            # print "unique_bin_vals", len(unique_bin_vals), unique_bin_vals
+            unique_bin_vals = np.unique(indices)
+            print "ages", len(ages), ages
+            print "indices", len(indices), indices
+            print "unique_bin_vals", len(unique_bin_vals), unique_bin_vals
             # print "inverse_indices", len(inverse_indices), inverse_indices
             _all_indices = np.arange(len(self._index), dtype=np.int)
-            for i, binval in enumerate(unique_bin_vals):
+            for i in unique_bin_vals:
                 # print "binval", binval
-                agesel = np.where(indices == binval)[0]
+                if i == 0 or i == len_age_grid:
+                    continue
+                agesel = np.where(indices == i)[0]
                 sel = np.copy(_all_indices[zsel][agesel])
-                age_start = age_grid[i]
-                age_stop = age_grid[i + 1]
-                # print "agesel", agesel
-                # print "age range", age_start, age_stop
-                # print "ages", self._index['age_str'][sel]
-                # print "metallicities", self._index['z_str'][sel]
+                age_start = age_grid[i - 1]
+                age_stop = age_grid[i]
+                print "agesel", agesel
+                print "age range", age_start, age_stop
+                print "ages", self._index['age_str'][sel]
+                print "metallicities", self._index['z_str'][sel]
                 binages = self._index['age'][sel]
                 binz = self._index['Z'][sel]
                 mean_age = binages.mean()
