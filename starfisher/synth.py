@@ -296,19 +296,15 @@ class Synth(object):
         """
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
-        t = Table.read(self.library_builder.isofile_path,
-                format='ascii.no_header',
-                names=['log(age)', 'path', 'output_path', 'msto'])
-        for row in t:
-            isocpath = row['output_path']
-            baseisocpath = os.path.basename(isocpath)
+        group_names = self.lockfile.active_groups
+        for name in group_names:
             for cmd in self._cmds:
-                synth_path = os.path.join(self.lockfile.synth_dir,
-                        baseisocpath + cmd['suffix'])
-                plot_path = os.path.join(plotdir,
-                        baseisocpath + cmd['suffix'])
+                synth_path = name + cmd['suffix']
+                basename = os.path.basename(synth_path)
+                plot_path = os.path.join(plotdir, basename)
                 if not os.path.exists(synth_path):
-                    logging.error("%s does not exist" % synth_path)
+                    logging.warning(
+                            "plot_all_hess: %s does not exist" % synth_path)
                     continue
                 self._plot_hess(synth_path, plot_path, cmd, **plot_args)
 
