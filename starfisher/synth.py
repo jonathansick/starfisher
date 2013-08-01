@@ -613,7 +613,10 @@ class Lockfile(object):
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname): os.makedirs(dirname)
 
-        t = Table(self._index)
+        sel = np.where(self._index['group'] > 0)[0]
+        lockdata = self._index[sel]
+
+        t = Table(lockdata)
         t.write(path, format='ascii.fixed_width_no_header', delimiter=' ',
                 bookend=False, delimiter_pad=None,
                 include_names=['group', 'path', 'name'],
