@@ -194,6 +194,8 @@ class Synth(object):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
         self._write(include_unlocked=include_unlocked)
         self._clean()
+        if not os.path.exists(self.lockfile.synth_dir):
+            os.makedirs(self.lockfile.synth_dir)
         subprocess.call("./synth < %s" % self._synth_config_path, shell=True)
 
     def _write(self, include_unlocked=False):
@@ -269,6 +271,7 @@ class Synth(object):
         synthdir = self.lockfile.synth_dir
         paths = glob.glob(os.path.join(synthdir, "z*"))
         for path in paths:
+            logging.warning("Removing %s" % path)
             os.remove(path)
 
     def plot_all_hess(self, plotdir, **plot_args):
