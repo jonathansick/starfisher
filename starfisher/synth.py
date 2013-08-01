@@ -387,7 +387,8 @@ class Lockfile(object):
         # The _index lists isochrones and grouping info for lockfile
         dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
             ('path', 'S40'), ('name', 'S40'),
-            ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float)])
+            ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float),
+            ('mean_group_age', np.float), ('mean_group_z', np.float)])
         self._index = np.empty(n_isoc, dtype=dt)
         for i, p in enumerate(paths):
             z_str, age_str = os.path.basename(p)[1:].split('_')
@@ -400,6 +401,8 @@ class Lockfile(object):
             self._index['path'][i] = p
             self._index['name'][i] = " " * 40
             self._index['dt'][i] = np.nan
+            self._index['mean_group_age'][i] = np.nan
+            self._index['mean_group_z'][i] = np.nan
         self._index['group'][:] = 0
 
     @property
@@ -488,6 +491,8 @@ class Lockfile(object):
                 self._index['group'][sel] = self._current_new_group_index
                 self._index['name'][sel] = stemname
                 self._index['dt'][sel] = dt
+                self._index['mean_group_age'][sel] = mean_age
+                self._index['mean_group_z'][sel] = mean_z
                 self._current_new_group_index += 1
                 # print self._index['dt'][sel]
                 # print self._index['name'][sel]
@@ -527,8 +532,14 @@ class Lockfile(object):
         self._index['group'][indices] = self._current_new_group_index
         stemname = os.path.join(self.synth_dir, name)
         self._index['name'][indices] = stemname
+        binages = self._index['age'][indices]
+        binz = self._index['Z'][indices]
+        mean_age = binages.mean()
+        mean_z = binz.mean()
         dt = 10. ** max(age_span) - 10. ** min(age_span)  # span in years
         self._index['dt'][indices] = dt
+        self._index['mean_group_age'][indices] = mean_age
+        self._index['mean_group_z'][indices] = mean_z
         self._current_new_group_index += 1
 
     def _include_unlocked_isochrones(self):
@@ -546,6 +557,8 @@ class Lockfile(object):
             logage = self._index['age'][idx]
             dt = 10. ** (logage + grid_dt / 2.) - 10. ** (logage - grid_dt / 2.)
             self._index['dt'][idx] = dt  # years
+            self._index['mean_group_age'][idx] = self._index['age'][idx]
+            self._index['mean_group_z'][idx] = self._index['Z'][idx]
             self._current_new_group_index += 1
 
     def _estimate_age_grid(self):
