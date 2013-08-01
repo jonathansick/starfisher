@@ -379,6 +379,7 @@ class Lockfile(object):
         self.isofile_path = library_builder.isofile_path
         self._index_isochrones()
         self._current_new_group_index = 1
+        self._isoc_sel = []  # orders _index by isochrone group
 
     def _index_isochrones(self):
         """Build an index of installated ischrones, noting filename, age,
@@ -504,6 +505,9 @@ class Lockfile(object):
                 self._index['mean_group_age'][sel] = mean_age
                 self._index['mean_group_z'][sel] = mean_z
                 self._current_new_group_index += 1
+                # Add these isochrones to the isochrone selector index
+                for i in sel:
+                    self._isoc_sel.append(i)
                 # print self._index['dt'][sel]
                 # print self._index['name'][sel]
 
@@ -551,6 +555,9 @@ class Lockfile(object):
         self._index['mean_group_age'][indices] = mean_age
         self._index['mean_group_z'][indices] = mean_z
         self._current_new_group_index += 1
+        # Add these isochrones to the isochrone selector index
+        for i in indices:
+            self._isoc_sel.append(i)
 
     def _include_unlocked_isochrones(self):
         """Creates single-isochrone groups for for isochrones that have
@@ -570,6 +577,8 @@ class Lockfile(object):
             self._index['mean_group_age'][idx] = self._index['age'][idx]
             self._index['mean_group_z'][idx] = self._index['Z'][idx]
             self._current_new_group_index += 1
+            # Add these isochrones to the isochrone selector index
+            self._isoc_sel.append(idx)
 
     def _estimate_age_grid(self):
         """Assuming that ischrones are sampled from a regular grid of log(age),
@@ -615,7 +624,8 @@ class Lockfile(object):
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname): os.makedirs(dirname)
 
-        sel = np.where(self._index['group'] > 0)[0]
+        # Lockfile has just the isochrones needed in it; ordered by group
+        sel = np.array(self._isoc_sel, dtype=np.int)
         lockdata = self._index[sel]
 
         t = Table(lockdata)
