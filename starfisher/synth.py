@@ -18,6 +18,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 from astropy.table import Table
 
+from .hess import read_hess
+
 
 class Synth(object):
     """Interface to StarFISH's `synth` command.
@@ -317,24 +319,9 @@ class Synth(object):
     def _plot_hess(self, synth_path, plot_path, cmd, format="png", dpi=300,
             figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
-        indata = np.loadtxt(synth_path)
-        nx = int((max(cmd['x_span']) - min(cmd['x_span'])) / self.dpix)
-        ny = int((max(cmd['y_span']) - min(cmd['y_span'])) / self.dpix)
-        hess = indata.reshape((ny, nx), order='C')
-
-        # extent format is (left, right, bottom, top)
-        if flipx:
-            extent = [max(cmd['x_span']), min(cmd['x_span'])]
-        else:
-            extent = [min(cmd['x_span']), max(cmd['x_span'])]
-        if flipy:
-            extent.extend([max(cmd['y_span']), min(cmd['y_span'])])
-        else:
-            extent.extend([min(cmd['y_span']), max(cmd['y_span'])])
-        if flipy:
-            origin = 'lower'
-        else:
-            origin = 'upper'
+        hess, extent, origin = read_hess(synth_path,
+                cmd['x_span'], cmd['y_span'], self.dpix, flipx-flipx,
+                flipy=flipy)
 
         fig = Figure(figsize=figsize)
         canvas = FigureCanvas(fig)
