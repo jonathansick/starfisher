@@ -624,17 +624,14 @@ class Lockfile(object):
         path : str
             Path where the ``cmdfile`` will be created.
         """
-        ngroups = self._index.shape[0]
         active_groups = self.active_groups
         ndata = np.empty(len(active_groups), dtype=np.dtype([('Z', np.float),
             ('log(age)', np.float), ('path', 'S40')]))
-        j = 0
-        for i in xrange(ngroups):
-            if self._index['name'][i] in active_groups:
-                ndata['Z'][j] = self._index['Z'][i]
-                ndata['log(age)'][j] = self._index['age'][i]
-                ndata['path'][j] = self._index['name'][i]
-                j += 1
+        for j, groupname in enumerate(active_groups):
+            i = np.where(self._index['name'] == groupname)[0][0]
+            ndata['Z'][j] = self._index['mean_group_z'][i]
+            ndata['log(age)'][j] = self._index['mean_group_age'][i]
+            ndata['path'][j] = self._index['name'][i]
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname): os.makedirs(dirname)
         t = Table(ndata)
@@ -649,17 +646,14 @@ class Lockfile(object):
         .. note:: Currently this hold file places no 'holds' on the star 
            formation history optimization.
         """
-        ngroups = self._index.shape[0]
-        active_groups = self.active_groups()
+        active_groups = self.active_groups
         ndata = np.empty(len(active_groups), dtype=np.dtype([('amp', np.float),
             ('Z', np.float), ('log(age)', np.float)]))
-        j = 0
-        for i in xrange(ngroups):
-            if self._index['name'][i] in active_groups:
-                ndata['amp'][j] = 0.
-                ndata['Z'][j] = self._index['Z'][i]
-                ndata['log(age)'][j] = self._index['age'][i]
-                j += 1
+        for j, groupname in enumerate(active_groups):
+            i = np.where(self._index['name'] == groupname)[0][0]
+            ndata['amp'][j] = 0.
+            ndata['Z'][j] = self._index['mean_group_z'][i]
+            ndata['log(age)'][j] = self._index['mean_group_age'][i]
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname): os.makedirs(dirname)
         t = Table(ndata)
