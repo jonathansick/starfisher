@@ -88,7 +88,7 @@ def read_hess(path, xspan, yspan, dpix, flipx=False, flipy=False):
     indata = np.loadtxt(path)
     hess = reshape_pixarray(indata, xspan, yspan, dpix)
     extent, origin = compute_cmd_extent(xspan, yspan, dpix,
-            flipx=False, flipy=False)
+            flipx=flipx, flipy=flipy)
     return hess, extent, origin
 
 

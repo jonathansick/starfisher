@@ -320,7 +320,7 @@ class Synth(object):
             figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
         hess, extent, origin = read_hess(synth_path,
-                cmd['x_span'], cmd['y_span'], self.dpix, flipx-flipx,
+                cmd['x_span'], cmd['y_span'], self.dpix, flipx=flipx,
                 flipy=flipy)
 
         fig = Figure(figsize=figsize)
