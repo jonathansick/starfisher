@@ -9,6 +9,8 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 
+from .hess import read_chi
+
 
 class SFHCirclePlot(object):
     """Plot SFH amplitudes as circular areas in an age vs metallicity plot.
@@ -84,6 +86,93 @@ class SFHCirclePlot(object):
         self.plot_in_ax(ax, **plotargs)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(path + "." + format, format=format)
+
+
+class ChiTriptykPlot(object):
+    """Three-panel plots of model Hess diagram, observed Hess diagram
+    and chi-square Hess diagram.
+    
+    Parameters
+    ----------
+
+    chipath : str
+        Path to the 'chi' output file from SFH.
+    icmd : int
+        Index of the CMD. The first CMD has an index of ``1``.
+    xspan : tuple
+        Tuple of ``(x_min, x_max)`` extent of the x-axis, in units of
+        magnitudes.
+    yspan : tuple
+        Tuple of ``(y_min, y_max)`` extent of the y-axis, in units of
+        magnitudes.
+    dpix : float
+        Size of each CMD pixel (``dpix`` by ``dpix`` in area) in mags.
+    flipx : bool
+        Reverse orientation of x-axis if ``True``.
+    flipy : bool
+        Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
+    """
+    def __init__(self, chipath, icmd, xspan, yspan, dpix, xlabel, ylabel,
+        flipx=False, flipy=False):
+        super(ChiTriptykPlot, self).__init__()
+        self.mod_hess, self.obs_hess, self.chi_hess, \
+            self.extent, self.origin = read_chi(
+            chipath, icmd, xspan, yspan, dpix, flipx=flipx, flipy=flipy)
+        self.chipath = chipath
+        self.icmd = icmd
+        self.xspan = xspan
+        self.yspan = yspan
+        self.dpix = dpix
+        self.flipx = flipx
+        self.flipy = flipy
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+
+    def plot_mod_in_ax(self, ax):
+        """Plot the model Hess diagram in the axis."""
+        ax.imshow(self.mod_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+                origin=self.origin, aspect='auto', interpolation='none')
+        return ax
+
+    def plot_obs_in_ax(self, ax):
+        """Plot the observed Hess diagram in the axis."""
+        ax.imshow(self.obs_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+                origin=self.origin, aspect='auto', interpolation='none')
+        return ax
+
+    def plot_chi_in_ax(self, ax):
+        """Plot the chi Hess diagram in the axis."""
+        ax.imshow(self.chi_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+                origin=self.origin, aspect='auto', interpolation='none')
+        return ax
+
+    def plot_triptyke(self, plotpath, format="pdf"):
+        """Make a plot triptype and save to disk."""
+        fig = Figure(figsize=(6.5, 3.5))
+        canvas = FigureCanvas(fig)
+        gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
+            bottom=0.15, top=0.95,
+            wspace=None, hspace=None, width_ratios=None, height_ratios=None)
+        ax_obs = fig.add_subplot(gs[0])
+        ax_mod = fig.add_subplot(gs[1])
+        ax_chi = fig.add_subplot(gs[2])
+        self.plot_obs_in_ax(ax_obs)
+        self.plot_mod_in_ax(ax_mod)
+        self.plot_chi_in_ax(ax_chi)
+
+        for ax in [ax_obs, ax_mod, ax_chi]:
+            ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%i"))
+            ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(1.))
+            ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%.1f"))
+            ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(0.5))
+        ax_mod.set_xlabel(self.xlabel)
+        ax_obs.set_ylabel(self.ylabel)
+        for tl in ax_mod.get_ymajorticklabels():
+            tl.set_visible(False)
+        for tl in ax_chi.get_ymajorticklabels():
+            tl.set_visible(False)
+        gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
+        canvas.print_figure(plotpath + "." + format, format=format, dpi=300)
 
 
 def main():

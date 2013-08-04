@@ -126,7 +126,7 @@ def read_chi(path, icmd, xspan, yspan, dpix, flipx=False, flipy=False):
     obs_hess = reshape_pixarray(indata['Nobs'], xspan, yspan, dpix)
     chi_hess = reshape_pixarray(indata['dchi'], xspan, yspan, dpix)
     extent, origin = compute_cmd_extent(xspan, yspan, dpix,
-            flipx=False, flipy=False)
+            flipx=flipx, flipy=flipy)
     return mod_hess, obs_hess, chi_hess, extent, origin
 
 
