@@ -135,7 +135,7 @@ class SFH(object):
 
         # read sfh output
         t = Table.read(self._outfile_path,
-               format="ascii.fixed_width_no_header",
+               format="ascii.no_header",
                names=['Z', 'log(age)',
                    'amp_nstars', 'amp_nstars_n', 'amp_nstars_p'])
 
@@ -152,7 +152,7 @@ class SFH(object):
 
         # Include Poisson errors in errorbars
         snstars = np.sqrt(float(nstars))
-        _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) * nstars * 2.)
+        _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
         sap = ep + _foo
         san = en + _foo
         # Truncate error bars if they extend below zero
