@@ -4,7 +4,9 @@
 Read and plot Hess diagram files produced by StarFISH.
 """
 
+import logging
 import numpy as np
+import math
 
 
 def reshape_pixarray(pixarray, xspan, yspan, dpix):
@@ -22,8 +24,11 @@ def reshape_pixarray(pixarray, xspan, yspan, dpix):
     dpix : float
         Size of each CMD pixel (``dpix`` by ``dpix`` in area) in mags.
     """
-    nx = int((max(xspan) - min(xspan)) / dpix)
-    ny = int((max(yspan) - min(yspan)) / dpix)
+    nx = int(math.ceil((max(xspan) - min(xspan)) / dpix))
+    ny = int(math.ceil((max(yspan) - min(yspan)) / dpix))
+    if nx * ny != pixarray.shape[0]:
+        logging.error("reshape_pixarray %s to (%i, %i)" 
+                % (pixarray.shape, nx, ny))
     hess = pixarray.reshape((ny, nx), order='C')
     return hess
 
