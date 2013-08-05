@@ -7,6 +7,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 
 import os
 import subprocess
+import math
 
 import numpy as np
 import matplotlib as mpl
@@ -194,8 +195,8 @@ class Mask(object):
         """
         dt = [("icmd", np.int), ("ibox", np.int), ("maskflag", np.int),
                 ("x", np.float), ("y", np.float)]
-        nx = int((max(xspan) - min(xspan)) / dpix)
-        ny = int((max(yspan) - min(yspan)) / dpix)
+        nx = int(math.ceil((max(xspan) - min(xspan)) / dpix))
+        ny = int(math.ceil((max(yspan) - min(yspan)) / dpix))
         npix = nx * ny
         msk = np.empty(npix, dtype=dt)
         # Fill in data
