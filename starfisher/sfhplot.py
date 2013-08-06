@@ -4,6 +4,7 @@
 Tools for plotting star formation histories.
 """
 
+import numpy as np
 import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -29,7 +30,7 @@ class SFHCirclePlot(object):
     @staticmethod
     def z_tick_formatter():
         """Formatter for metallicity axis."""
-        return mpl.ticker.FormatStrFormatter("%.3f")
+        return mpl.ticker.FormatStrFormatter("%.2f")
 
     @staticmethod
     def age_tick_formatter():
@@ -51,13 +52,14 @@ class SFHCirclePlot(object):
             nor produces points too small to see.
         """
         scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
-        ax.scatter(self._table['log(age)'], self._table['Z'], s=scaled_area,
+        ZZsol = np.log10(self._table['Z'] / 0.019)
+        ax.scatter(self._table['log(age)'], ZZsol, s=scaled_area,
                 c='k', marker='o', linewidths=0.)
         ax.set_xlabel(r"$\log(A)$")
-        ax.set_ylabel(r"$Z$")
+        ax.set_ylabel(r"$\log(Z/Z_\odot)$")
         ax.xaxis.set_major_formatter(self.age_tick_formatter())
         ax.yaxis.set_major_formatter(self.z_tick_formatter())
-        ax.set_ylim(0.0, 0.035)
+        ax.set_ylim(-2.0, 0.5)
         ax.set_xlim(6.45, 10.55)
         return ax
 
