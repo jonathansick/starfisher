@@ -20,17 +20,16 @@ from astropy.table import Table, Column
 
 class SFH(object):
     """Interface to the StarFISH ``sfh`` program.
-    
+
     Parameters
     ----------
-
     data_root : str
         Root filename of the photometry data (the full path minus the suffix
         for each CMD plane).
     synth : :class:`synth.Synth` instance
         The instance of :class:`synth.Synth` used to prepare the synthetic
         CMDs.
-    mask : :class:`sfh.Mask` instance 
+    mask : :class:`sfh.Mask` instance
         The instance of :class:`sfh.Mask` specifying how each CMD plane
         should be masked.
     input_dir : str
@@ -92,9 +91,9 @@ class SFH(object):
             lines.append("%.2f" % min(cmd['y_span']))
             lines.append("%.2f" % max(cmd['y_span']))
             nx = int((max(cmd['x_span']) - min(cmd['x_span']))
-                    / self.synth.dpix)
+                     / self.synth.dpix)
             ny = int((max(cmd['y_span']) - min(cmd['y_span']))
-                    / self.synth.dpix)
+                     / self.synth.dpix)
             nbox = nx * ny
             lines.append(str(nbox))
 
@@ -126,7 +125,6 @@ class SFH(object):
 
         Parameters
         ----------
-
         avgmass : float
             Average mass of the stellar population; given the IMF. For a
             Salpeter IMF this is 1.628.
@@ -136,9 +134,9 @@ class SFH(object):
 
         # read sfh output
         t = Table.read(self._outfile_path,
-               format="ascii.no_header",
-               names=['Z', 'log(age)',
-                   'amp_nstars', 'amp_nstars_n', 'amp_nstars_p'])
+                       format="ascii.no_header",
+                       names=['Z', 'log(age)',
+                              'amp_nstars', 'amp_nstars_n', 'amp_nstars_p'])
 
         # Open a photometry file to count stars
         dataset_path = self.data_root + self.synth._cmds[0]['suffix']
@@ -194,7 +192,7 @@ class Mask(object):
             Size of CMD pixels
         """
         dt = [("icmd", np.int), ("ibox", np.int), ("maskflag", np.int),
-                ("x", np.float), ("y", np.float)]
+              ("x", np.float), ("y", np.float)]
         nx = int(math.ceil((max(xspan) - min(xspan)) / dpix))
         ny = int(math.ceil((max(yspan) - min(yspan)) / dpix))
         npix = nx * ny
@@ -215,8 +213,10 @@ class Mask(object):
     def write(self):
         """Write the mask file."""
         dirname = os.path.dirname(self.mask_path)
-        if not os.path.exists(dirname): os.makedirs(dirname)
-        if os.path.exists(self.mask_path): os.remove(self.mask_path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        if os.path.exists(self.mask_path):
+            os.remove(self.mask_path)
         mskdata = np.concatenate(tuple(self._cmds))
         t = Table(mskdata)
         t.write(self.mask_path, format="ascii.fixed_width_no_header",
@@ -225,10 +225,10 @@ class Mask(object):
                 formats={"icmd": "%i", "ibox": "%i", "maskflag": "%i"})
 
     def plot_cmd_mask(self, index, output_path, xspan, yspan, dpix,
-            xlabel, ylabel, format="png", dpi=300,
-            figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
+                      xlabel, ylabel, format="png", dpi=300,
+                      figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a CMD mask.
-        
+
         .. todo:: Refactor internals of this method and
            :meth:`synth._plot_hess`.
         """
@@ -255,14 +255,15 @@ class Mask(object):
         fig = Figure(figsize=(4., 4.))
         canvas = FigureCanvas(fig)
         gs = gridspec.GridSpec(1, 1,
-            left=0.15, right=0.95, bottom=0.15, top=0.95,
-            wspace=None, hspace=None, width_ratios=None, height_ratios=None)
+                               left=0.15, right=0.95, bottom=0.15, top=0.95,
+                               wspace=None, hspace=None,
+                               width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
         ax.imshow(mask_image, cmap=mpl.cm.gray_r, norm=None,
-                aspect=aspect,
-                interpolation='none',
-                extent=extent, origin=origin,
-                alpha=None, vmin=None, vmax=None)
+                  aspect=aspect,
+                  interpolation='none',
+                  extent=extent, origin=origin,
+                  alpha=None, vmin=None, vmax=None)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
@@ -271,14 +272,3 @@ class Mask(object):
         if plot_dir is not "" and not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
         canvas.print_figure(output_path + "." + format, format=format, dpi=dpi)
-
-
-def main():
-    msk = Mask("mask.txt")
-    msk.init_cmd((0., 3.), (12., 20.), 0.05)
-    msk.plot_cmd_mask(0, "test_mask", (0., 3.), (12., 20.), 0.05, "x", "y",
-            flipy=True)
-
-
-if __name__ == '__main__':
-    main()

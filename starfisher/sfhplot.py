@@ -10,15 +10,14 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 
-from .hess import read_chi
+from starfisher.hess import read_chi
 
 
 class SFHCirclePlot(object):
     """Plot SFH amplitudes as circular areas in an age vs metallicity plot.
-    
+
     Parameters
     ----------
-
     sfh_table : :class:`astropy.table.Table` instance
         The SFH solution table generated via :meth:`sfh.SFH.solution_table`.
         This is an Astropy :class:`Table` instance.
@@ -39,10 +38,9 @@ class SFHCirclePlot(object):
 
     def plot_in_ax(self, ax, max_area=200.):
         """Plot the SFH in the given axes.
-        
+
         Parameters
         ----------
-
         ax : matplotlib `Axes` instance
             The axes to plot into.
         max_area : float
@@ -54,7 +52,7 @@ class SFHCirclePlot(object):
         scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
         ZZsol = np.log10(self._table['Z'] / 0.019)
         ax.scatter(self._table['log(age)'], ZZsol, s=scaled_area,
-                c='k', marker='o', linewidths=0.)
+                   c='k', marker='o', linewidths=0.)
         ax.set_xlabel(r"$\log(A)$")
         ax.set_ylabel(r"$\log(Z/Z_\odot)$")
         ax.xaxis.set_major_formatter(self.age_tick_formatter())
@@ -65,10 +63,9 @@ class SFHCirclePlot(object):
 
     def plot(self, path, figsize=(4.5, 3.5), format='pdf', plotargs={}):
         """Construct and save SFH plot to ``path``.
-        
+
         Parameters
         ----------
-
         path : str
             Path where the plot will be saved. Do not include the format
             suffix.
@@ -82,8 +79,8 @@ class SFHCirclePlot(object):
         fig = Figure(figsize=figsize)
         canvas = FigureCanvas(fig)
         gs = gridspec.GridSpec(1, 1, left=0.18, right=0.95, bottom=0.15,
-                top=0.95, wspace=None, hspace=None,
-                width_ratios=None, height_ratios=None)
+                               top=0.95, wspace=None, hspace=None,
+                               width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
         self.plot_in_ax(ax, **plotargs)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
@@ -93,10 +90,9 @@ class SFHCirclePlot(object):
 class ChiTriptykPlot(object):
     """Three-panel plots of model Hess diagram, observed Hess diagram
     and chi-square Hess diagram.
-    
+
     Parameters
     ----------
-
     chipath : str
         Path to the 'chi' output file from SFH.
     icmd : int
@@ -115,11 +111,15 @@ class ChiTriptykPlot(object):
         Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
     """
     def __init__(self, chipath, icmd, xspan, yspan, dpix, xlabel, ylabel,
-        flipx=False, flipy=False):
+                 flipx=False, flipy=False):
         super(ChiTriptykPlot, self).__init__()
-        self.mod_hess, self.obs_hess, self.chi_hess, \
-            self.extent, self.origin = read_chi(
-            chipath, icmd, xspan, yspan, dpix, flipx=flipx, flipy=flipy)
+        _ = read_chi(chipath, icmd, xspan, yspan, dpix,
+                     flipx=flipx, flipy=flipy)
+        self.mod_hess = _[0]
+        self.obs_hess = _[1]
+        self.chi_hess = _[2]
+        self.extent = _[3]
+        self.origin = _[4]
         self.chipath = chipath
         self.icmd = icmd
         self.xspan = xspan
@@ -133,19 +133,19 @@ class ChiTriptykPlot(object):
     def plot_mod_in_ax(self, ax):
         """Plot the model Hess diagram in the axis."""
         ax.imshow(self.mod_hess, cmap=mpl.cm.gray_r, extent=self.extent,
-                origin=self.origin, aspect='auto', interpolation='none')
+                  origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
     def plot_obs_in_ax(self, ax):
         """Plot the observed Hess diagram in the axis."""
         ax.imshow(self.obs_hess, cmap=mpl.cm.gray_r, extent=self.extent,
-                origin=self.origin, aspect='auto', interpolation='none')
+                  origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
     def plot_chi_in_ax(self, ax):
         """Plot the chi Hess diagram in the axis."""
         ax.imshow(self.chi_hess, cmap=mpl.cm.gray_r, extent=self.extent,
-                origin=self.origin, aspect='auto', interpolation='none')
+                  origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
     def plot_triptyke(self, plotpath, format="pdf"):
@@ -153,8 +153,9 @@ class ChiTriptykPlot(object):
         fig = Figure(figsize=(6.5, 3.5))
         canvas = FigureCanvas(fig)
         gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
-            bottom=0.15, top=0.95,
-            wspace=None, hspace=None, width_ratios=None, height_ratios=None)
+                               bottom=0.15, top=0.95,
+                               wspace=None, hspace=None,
+                               width_ratios=None, height_ratios=None)
         ax_obs = fig.add_subplot(gs[0])
         ax_mod = fig.add_subplot(gs[1])
         ax_chi = fig.add_subplot(gs[2])
@@ -175,11 +176,3 @@ class ChiTriptykPlot(object):
             tl.set_visible(False)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plotpath + "." + format, format=format, dpi=300)
-
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()

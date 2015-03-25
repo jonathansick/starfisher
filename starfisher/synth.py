@@ -18,7 +18,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 from astropy.table import Table
 
-from .hess import read_hess
+from starfisher.hess import read_hess
 
 
 class Synth(object):
@@ -29,10 +29,9 @@ class Synth(object):
     then a zero extinction file will automatically be created. To have the
     same extinction for both young and old stars, set these to the same
     instance.
-    
+
     Parameters
     ----------
-
     library_builder : :class:`isolibrary.LibraryBuilder` instance
         The instance of :class:`isolibrary.LibraryBuilder` used to prepare the
         isochrone library
@@ -73,9 +72,9 @@ class Synth(object):
         Binary fraction.
     """
     def __init__(self, library_builder, lockfile, input_dir,
-            rel_extinction, young_extinction=None, old_extinction=None,
-            dpix=0.05, nstars=1000000, verb=3, interp_err=True,
-            seed=256, mass_span=(0.5, 100.), fbinary=0.5):
+                 rel_extinction, young_extinction=None, old_extinction=None,
+                 dpix=0.05, nstars=1000000, verb=3, interp_err=True,
+                 seed=256, mass_span=(0.5, 100.), fbinary=0.5):
         super(Synth, self).__init__()
         self.library_builder = library_builder
         self.lockfile = lockfile
@@ -101,7 +100,7 @@ class Synth(object):
     @property
     def n_active_groups(self):
         """Number of isochrone groups that have been realized by synth``.
-        
+
         Isochrones that generated errors will be excluded here. This value
         should be used as the input for ``sfh`` for the dimensionality
         of the optimizations.
@@ -109,12 +108,11 @@ class Synth(object):
         return len(self.lockfile.active_groups)
 
     def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
-            xlabel="x", ylabel="y"):
+                xlabel="x", ylabel="y"):
         """Add a CMD plane for synthesis.
 
         Parameters
         ----------
-
         x_mag : int or tuple
             Indices (1-based) of bands to form the x-axis. If `x_mag` is a
             float, then the x-axis is that magnitude. If `x_mag` is a
@@ -149,20 +147,19 @@ class Synth(object):
         else:
             y_str = str(y_mag)
         cmd_def = {'x_mag': x_mag, 'y_mag': y_mag,
-                "x_str": x_str, "y_str": y_str,
-                "x_span": x_span, "y_span": y_span,
-                "y_crowding_max": y_crowding_max,
-                "suffix": suffix,
-                "x_label": xlabel, "y_label": ylabel}
+                   "x_str": x_str, "y_str": y_str,
+                   "x_span": x_span, "y_span": y_span,
+                   "y_crowding_max": y_crowding_max,
+                   "suffix": suffix,
+                   "x_label": xlabel, "y_label": ylabel}
         self._cmds.append(cmd_def)
 
     def set_crowding_table(self, path, output_path, dbin, error_range,
-            binsize, error_method=2):
+                           binsize, error_method=2):
         """Setup the artificial star test crowding table.
 
         Parameters
         ----------
-        
         crowding_path : str
             Path to the artificial star test file (in StarFISH format).
             A package such as `delphinus` can help make this file from
@@ -186,10 +183,9 @@ class Synth(object):
         self.error_method = error_method
         self.crowding_path = path
         self.crowding_output_path = output_path
-        self._crowd_config = {
-                "dbin": dbin,
-                "error_range": error_range,
-                "binsize": binsize}
+        self._crowd_config = {"dbin": dbin,
+                              "error_range": error_range,
+                              "binsize": binsize}
         self.error_method = error_method
 
     def run_synth(self, include_unlocked=False):
@@ -205,17 +201,17 @@ class Synth(object):
         self._synth_config_path = os.path.join(self.input_dir, "synth.dat")
         if os.path.exists(self._synth_config_path):
             os.remove(self._synth_config_path)
-        
+
         # Prep lock file and edited isofile
         self.lockfile.write(os.path.join(self.input_dir, "lock.dat"),
-                include_unlocked=include_unlocked)
+                            include_unlocked=include_unlocked)
 
         # Create each line of synth input
         lines = []
 
         lines.append(self.lockfile.synth_isofile_path)  # matches lockfile
         lines.append(self.lockfile.lock_path)
-        
+
         self.young_extinction.write(os.path.join(self.input_dir, "young.av"))
         lines.append(self.young_extinction.path)
 
@@ -281,10 +277,9 @@ class Synth(object):
 
     def plot_all_hess(self, plotdir, **plot_args):
         """Plot Hess (binned CMD) diagrams of all synthetic CMD planes.
-        
+
         Parameters
         ----------
-
         plotdir : str
             Directory where plots will be saved.
         format : str
@@ -311,17 +306,18 @@ class Synth(object):
                 basename = os.path.basename(synth_path)
                 plot_path = os.path.join(plotdir, basename)
                 if not os.path.exists(synth_path):
-                    logging.warning(
-                            "plot_all_hess: %s does not exist" % synth_path)
+                    logging.warning("plot_all_hess: %s does not exist"
+                                    % synth_path)
                     continue
                 self._plot_hess(synth_path, plot_path, cmd, **plot_args)
 
     def _plot_hess(self, synth_path, plot_path, cmd, format="png", dpi=300,
-            figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
+                   figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
-        hess, extent, origin = read_hess(synth_path,
-                cmd['x_span'], cmd['y_span'], self.dpix, flipx=flipx,
-                flipy=flipy)
+        _ = read_hess(synth_path,
+                      cmd['x_span'], cmd['y_span'], self.dpix, flipx=flipx,
+                      flipy=flipy)
+        hess, extent, origin = _
 
         # Get synthetic Z and logA from filename
         basename = os.path.splitext(os.path.basename(synth_path))[0][1:]
@@ -340,14 +336,15 @@ class Synth(object):
         fig = Figure(figsize=figsize)
         canvas = FigureCanvas(fig)
         gs = gridspec.GridSpec(1, 1,
-            left=0.17, right=0.95, bottom=0.15, top=0.95,
-            wspace=None, hspace=None, width_ratios=None, height_ratios=None)
+                               left=0.17, right=0.95, bottom=0.15, top=0.95,
+                               wspace=None, hspace=None,
+                               width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
         ax.imshow(hess, cmap=mpl.cm.gray_r, norm=None,
-                aspect=aspect,
-                interpolation='none',
-                extent=extent, origin=origin,
-                alpha=None, vmin=None, vmax=None)
+                  aspect=aspect,
+                  interpolation='none',
+                  extent=extent, origin=origin,
+                  alpha=None, vmin=None, vmax=None)
         ax.set_xlabel(cmd['x_label'])
         ax.set_ylabel(cmd['y_label'])
         # title = synth_path
@@ -390,14 +387,15 @@ class Lockfile(object):
         """
         # Read the isofile to get list of isochrones
         t = Table.read(self.isofile_path, format='ascii.no_header',
-                names=['log(age)', 'path', 'output_path', 'msto'])
+                       names=['log(age)', 'path', 'output_path', 'msto'])
         paths = t['output_path']
         n_isoc = len(paths)
         # The _index lists isochrones and grouping info for lockfile
         dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
-            ('path', 'S40'), ('name', 'S40'),
-            ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float),
-            ('mean_group_age', np.float), ('mean_group_z', np.float)])
+                       ('path', 'S40'), ('name', 'S40'),
+                       ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float),
+                       ('mean_group_age', np.float),
+                       ('mean_group_z', np.float)])
         self._index = np.empty(n_isoc, dtype=dt)
         for i, p in enumerate(paths):
             z_str, age_str = os.path.basename(p)[1:].split('_')
@@ -433,7 +431,6 @@ class Lockfile(object):
 
         Parameters
         ----------
-
         age_grid : ndarray
             1D array of log(age) grid *edges*. The first age group spans
             from ``age_grid[0]`` to ``age_grid[1]``, while the last age group
@@ -450,10 +447,10 @@ class Lockfile(object):
             If left as ``None``, then isochrones of distinct metallicities
             will not be locked together, and all metallicities will be used.
         """
-        if z_groups == None:
+        if z_groups is None:
             # Make a default listing of all Z groups, unbinned
             unique_z, unique_indices = np.unique(self._index['z_str'],
-                    return_index=True)
+                                                 return_index=True)
             zvals = self._index['Z'][unique_indices]
             sort = np.argsort(zvals)
             unique_z = unique_z[sort]
@@ -462,22 +459,17 @@ class Lockfile(object):
 
         len_age_grid = len(age_grid)
         for z_group in z_groups:
-            print "z_group", z_group
             zsels = [np.where(self._index['z_str'] == zstr)[0]
-                for zstr in z_group]
+                     for zstr in z_group]
             zsel = np.concatenate(zsels)
             if zsel.shape[0] == 0:
                 logging.warning("No isochrones for z_group: %s" % z_group)
                 continue
             ages = self._index['age'][zsel]
             # Bin ages in this metallicity group
-            indices = np.digitize(ages, age_grid,right=False)
+            indices = np.digitize(ages, age_grid, right=False)
             # Unique bin values to iterate through
             unique_bin_vals = np.unique(indices)
-            print "ages", len(ages), ages
-            print "indices", len(indices), indices
-            print "unique_bin_vals", len(unique_bin_vals), unique_bin_vals
-            # print "inverse_indices", len(inverse_indices), inverse_indices
             _all_indices = np.arange(len(self._index), dtype=np.int)
             for i in unique_bin_vals:
                 # print "binval", binval
@@ -487,10 +479,6 @@ class Lockfile(object):
                 sel = np.copy(_all_indices[zsel][agesel])
                 age_start = age_grid[i - 1]
                 age_stop = age_grid[i]
-                print "agesel", agesel
-                print "age range", age_start, age_stop
-                print "ages", self._index['age_str'][sel]
-                print "metallicities", self._index['z_str'][sel]
                 binages = self._index['age'][sel]
                 binz = self._index['Z'][sel]
                 mean_age = binages.mean()
@@ -500,7 +488,7 @@ class Lockfile(object):
                 z_str = "%.4f" % mean_z
                 z_str = z_str[2:]
                 stemname = os.path.join(self.synth_dir,
-                        "z%s_%s" % (z_str, age_str))
+                                        "z%s_%s" % (z_str, age_str))
                 # print "stemname", stemname
                 self._index['group'][sel] = self._current_new_group_index
                 self._index['name'][sel] = stemname
@@ -516,10 +504,9 @@ class Lockfile(object):
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
-        
+
         Parameters
         ----------
-
         name : str
             Name of the isochrone group. By convension this is `zXXXX_YY.YY`
             where `XXXX` is the representative metallicity (fractional part)
@@ -543,9 +530,9 @@ class Lockfile(object):
             span are included.
         """
         indices = np.where((self._index['age'] > min(age_span) - d_age)
-                & (self._index['age'] < max(age_span) + d_age)
-                & (self._index['Z'] > min(age_span) - d_z)
-                & (self._index['Z'] < max(age_span) + d_z))[0]
+                           & (self._index['age'] < max(age_span) + d_age)
+                           & (self._index['Z'] > min(age_span) - d_z)
+                           & (self._index['Z'] < max(age_span) + d_z))[0]
         self._index['group'][indices] = self._current_new_group_index
         stemname = os.path.join(self.synth_dir, name)
         self._index['name'][indices] = stemname
@@ -570,12 +557,13 @@ class Lockfile(object):
         grid_dt = self._estimate_age_grid()
         for idx in indices:
             name = "z%s_%s" % (self._index['z_str'][idx],
-                    self._index['age_str'][idx])
+                               self._index['age_str'][idx])
             self._index['group'][idx] = self._current_new_group_index
             stemname = os.path.join(self.synth_dir, name)
             self._index['name'][idx] = stemname
             logage = self._index['age'][idx]
-            dt = 10. ** (logage + grid_dt / 2.) - 10. ** (logage - grid_dt / 2.)
+            dt = 10. ** (logage + grid_dt / 2.) \
+                - 10. ** (logage - grid_dt / 2.)
             self._index['dt'][idx] = dt  # years
             self._index['mean_group_age'][idx] = self._index['age'][idx]
             self._index['mean_group_z'][idx] = self._index['Z'][idx]
@@ -588,7 +576,7 @@ class Lockfile(object):
         this method finds the cell size of that log(age) grid.
         """
         unique_age_str, indices = np.unique(self._index['age_str'],
-                return_index=True)
+                                            return_index=True)
         age_grid = self._index['age'][indices]
         sort = np.argsort(age_grid)
         age_grid = age_grid[sort]
@@ -598,10 +586,9 @@ class Lockfile(object):
 
     def write(self, path, include_unlocked=False):
         """Write the lockfile to path.
-        
+
         Parameters
         ----------
-
         path : str
             Filename of lockfile.
         include_unlocked : bool
@@ -617,7 +604,7 @@ class Lockfile(object):
 
     def _write(self, path):
         """Write the lock file to `path`.
-        
+
         Each row of the lockfile has the columns:
 
         - group id[int]
@@ -625,7 +612,8 @@ class Lockfile(object):
         - synthfilestem [up to 40 characters]
         """
         dirname = os.path.dirname(path)
-        if not os.path.exists(dirname): os.makedirs(dirname)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
 
         # Lockfile has just the isochrones needed in it; ordered by group
         sel = np.array(self._isoc_sel, dtype=np.int)
@@ -640,7 +628,7 @@ class Lockfile(object):
         # Also write the edited isofile
         self.synth_isofile_path = self.library_builder.isofile_path + ".synth"
         self.library_builder.write_edited_isofile(self.synth_isofile_path,
-                sel)
+                                                  sel)
 
         # also make sure synth dir is ready
         if not os.path.exists(self.synth_dir):
@@ -648,23 +636,25 @@ class Lockfile(object):
 
     def write_cmdfile(self, path):
         """Create the ``cmdfile`` needed by the ``sfh`` program.
-        
+
         Parameters
         ----------
-
         path : str
             Path where the ``cmdfile`` will be created.
         """
         active_groups = self.active_groups
-        ndata = np.empty(len(active_groups), dtype=np.dtype([('Z', np.float),
-            ('log(age)', np.float), ('path', 'S40')]))
+        ndata = np.empty(len(active_groups),
+                         dtype=np.dtype([('Z', np.float),
+                                         ('log(age)', np.float),
+                                         ('path', 'S40')]))
         for j, groupname in enumerate(active_groups):
             i = np.where(self._index['name'] == groupname)[0][0]
             ndata['Z'][j] = self._index['mean_group_z'][i]
             ndata['log(age)'][j] = self._index['mean_group_age'][i]
             ndata['path'][j] = self._index['name'][i]
         dirname = os.path.dirname(path)
-        if not os.path.exists(dirname): os.makedirs(dirname)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         t = Table(ndata)
         t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
                 bookend=False, delimiter_pad=None,
@@ -673,20 +663,22 @@ class Lockfile(object):
 
     def write_holdfile(self, path):
         """Write the ``holdfile`` needed by the ``sfh`` program.
-        
-        .. note:: Currently this hold file places no 'holds' on the star 
+
+        .. note:: Currently this hold file places no 'holds' on the star
            formation history optimization.
         """
         active_groups = self.active_groups
-        ndata = np.empty(len(active_groups), dtype=np.dtype([('amp', np.float),
-            ('Z', np.float), ('log(age)', np.float)]))
+        dt = np.dtype([('amp', np.float), ('Z', np.float),
+                       ('log(age)', np.float)])
+        ndata = np.empty(len(active_groups), dtype=dt)
         for j, groupname in enumerate(active_groups):
             i = np.where(self._index['name'] == groupname)[0][0]
             ndata['amp'][j] = 0.
             ndata['Z'][j] = self._index['mean_group_z'][i]
             ndata['log(age)'][j] = self._index['mean_group_age'][i]
         dirname = os.path.dirname(path)
-        if not os.path.exists(dirname): os.makedirs(dirname)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         t = Table(ndata)
         t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
                 bookend=False, delimiter_pad=None,
@@ -710,7 +702,7 @@ class Lockfile(object):
 
 class ExtinctionDistribution(object):
     """Create an extinction distribution file for :class:`Synth`.
-    
+
     Synthesized stars will have extinction values drawn randomly from samples
     in the extintion distribution. Uniform extinction can be implemented by
     using only one extinction value.
@@ -728,10 +720,9 @@ class ExtinctionDistribution(object):
 
     def set_samples(self, extinction_array):
         """Set a 1D array of extinction values.
-        
+
         Parameters
         ----------
-
         extinction_array : ndarray, (n,)
             A 1D array of extinction sample values (in magnitudes).
         """
@@ -740,10 +731,9 @@ class ExtinctionDistribution(object):
 
     def set_uniform(self, extinction):
         """Set uniform extinction.
-        
+
         Parameters
         ----------
-
         extinction : float
             The uniform extinction value (in magnitudes).
             I.e., set `extinction=0.` for no
@@ -753,24 +743,16 @@ class ExtinctionDistribution(object):
 
     def write(self, path):
         """Write the extinction file to `path`.
-        
+
         Parameters
         ----------
-
         path : str
             Path where extinction file is written.
         """
         dirname = os.path.dirname(path)
-        if not os.path.exists(dirname): os.makedirs(dirname)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
 
         t = Table([self._extinction_array], names=['A'])
         t.write(path, format='ascii.no_header', delimiter=' ')
         self.path = path
-
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()
