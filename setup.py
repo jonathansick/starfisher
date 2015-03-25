@@ -1,109 +1,70 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
-import sys
-import imp
-try:
-    # This incantation forces distribute to be used (over setuptools) if it is
-    # available on the path; otherwise distribute will be downloaded.
-    import pkg_resources
-    distribute = pkg_resources.get_distribution('distribute')
-    if pkg_resources.get_distribution('setuptools') != distribute:
-        sys.path.insert(1, distribute.location)
-        distribute.activate()
-        imp.reload(pkg_resources)
-except:  # There are several types of exceptions that can occur here
-    from distribute_setup import use_setuptools
-    use_setuptools()
-
-import glob
-import os
-from setuptools import setup, find_packages
-
-#A dirty hack to get around some early import/configurations ambiguities
-if sys.version_info[0] >= 3:
-    import builtins
-else:
-    import __builtin__ as builtins
-builtins._ASTROPY_SETUP_ = True
-
-import astropy
-from astropy.setup_helpers import (register_commands, adjust_compiler,
-                                   filter_packages, update_package_files,
-                                   get_debug_option)
-from astropy.version_helpers import get_git_devstr, generate_version_py
-
 # Set affiliated package-specific settings
 PACKAGENAME = 'starfisher'
-DESCRIPTION = 'Python tools for StarFISH star formation history decompositions.'
-LONG_DESCRIPTION = ''  # TODO LONG_DESCRIPTION = starfisher.__doc__
+DESCRIPTION = 'Python tools for StarFISH star formation history ' \
+              'decompositions.'
 AUTHOR = 'Jonathan Sick'
 AUTHOR_EMAIL = 'jonathansick@mac.com'
-LICENSE = 'BSD'
-URL = 'http://jonathansick.ca'
+URL = 'http://github.com/jonathansick/starfisher'
 
-# VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.0.dev'
+from setuptools import setup, find_packages
+# To use a consistent encoding
+from codecs import open
+from os import path
 
-# Indicates if this version is a release version
-RELEASE = 'dev' not in VERSION
+here = path.abspath(path.dirname(__file__))
 
-if not RELEASE:
-    VERSION += get_git_devstr(False)
+# Get the long description from the relevant file
+with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
 
-# Populate the dict of setup command overrides; this should be done before
-# invoking any other functionality from distutils since it can potentially
-# modify distutils' behavior.
-cmdclassd = register_commands(PACKAGENAME, VERSION, RELEASE)
+setup(
+    name=PACKAGENAME,
 
-# Adjust the compiler in case the default on this platform is to use a
-# broken one.
-adjust_compiler(PACKAGENAME)
+    # Versions should comply with PEP440.  For a discussion on single-sourcing
+    # the version across setup.py and the project code, see
+    # https://packaging.python.org/en/latest/single_source_version.html
+    version='0.0.1.dev',
+    description=DESCRIPTION,
+    long_description=long_description,
+    url=URL,
+    author=AUTHOR,
+    author_email=AUTHOR_EMAIL,
+    license='MIT',
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 2.7',
+    ],
 
-# Freeze build information in version.py
-generate_version_py(PACKAGENAME, VERSION, RELEASE, get_debug_option())
+    # What does your project relate to?
+    keywords='astronomy',
 
-# Use the find_packages tool to locate all packages and modules
-packagenames = filter_packages(find_packages())
+    # You can just specify the packages manually here if your project is
+    # simple. Or you can use find_packages().
+    packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
-# Treat everything in scripts except README.rst as a script to be installed
-scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
-           if os.path.basename(fname) != 'README.rst']
+    # List run-time dependencies here.  These will be installed by pip when
+    # your project is installed. For an analysis of "install_requires" vs pip's
+    # requirements files see:
+    # https://packaging.python.org/en/latest/requirements.html
+    install_requires=['numpy', 'astropy'],
 
-# Additional C extensions that are not Cython-based should be added here.
-extensions = []
+    # If there are data files included in your packages that need to be
+    # installed, specify them here.  If using Python 2.6 or less, then these
+    # have to be included in MANIFEST.in as well.
+    # package_data={
+    #     'sample': ['package_data.dat'],
+    # },
 
-# A dictionary to keep track of all package data to install
-package_data = {PACKAGENAME: ['data/*']}
-
-# A dictionary to keep track of extra packagedir mappings
-package_dirs = {}
-
-# Update extensions, package_data, packagenames and package_dirs from
-# any sub-packages that define their own extension modules and package
-# data.  See the docstring for setup_helpers.update_package_files for
-# more details.
-update_package_files(PACKAGENAME, extensions, package_data, packagenames,
-                     package_dirs)
-
-
-setup(name=PACKAGENAME,
-      version=VERSION,
-      description=DESCRIPTION,
-      packages=packagenames,
-      package_data=package_data,
-      package_dir=package_dirs,
-      ext_modules=extensions,
-      scripts=scripts,
-      requires=['astropy'],
-      install_requires=['astropy'],
-      provides=[PACKAGENAME],
-      author=AUTHOR,
-      author_email=AUTHOR_EMAIL,
-      license=LICENSE,
-      url=URL,
-      long_description=LONG_DESCRIPTION,
-      cmdclass=cmdclassd,
-      zip_safe=False,
-      use_2to3=True
-      )
+    # To provide executable scripts, use entry points in preference to the
+    # "scripts" keyword. Entry points provide cross-platform support and allow
+    # pip to create the appropriate form of executable for the target platform.
+    # entry_points={
+    #     'console_scripts': [
+    #         'sample=sample:main',
+    #     ],
+    # },
+)
