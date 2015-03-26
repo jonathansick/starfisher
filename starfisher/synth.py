@@ -67,8 +67,14 @@ class Synth(object):
         stars.
     fbinary : float
         Binary fraction.
+    crowdfile :
+        A crowding data instance,
+        e.g., :class:`starfisher.crowd.MockNullCrowdingTable`.
+    crowd_output_path : str
+        Path where `synth` will write the error lookup table, relative
+        to the StarFISH directory.
     """
-    def __init__(self, library_builder, lockfile, input_dir,
+    def __init__(self, input_dir, library_builder, lockfile, crowdfile,
                  rel_extinction, young_extinction=None, old_extinction=None,
                  dpix=0.05, nstars=1000000, verb=3, interp_err=True,
                  seed=256, mass_span=(0.5, 100.), fbinary=0.5):
@@ -86,7 +92,9 @@ class Synth(object):
         self.seed = seed
         self.mass_span = mass_span
         self.fbinary = fbinary
-        self.error_method = 1  # by default assume analytic errors
+        self.crowdfile = crowdfile
+        self.crowding_output_path = os.path.join(input_dir, "crowd_lookup.dat")
+
         self._cmds = []  # add_cmd() inserts data here
 
     @property
@@ -187,42 +195,6 @@ class Synth(object):
                    "x_label": xlabel, "y_label": ylabel}
         self._cmds.append(cmd_def)
 
-    def set_crowding_table(self, path, output_path, dbin, error_range,
-                           binsize, error_method=2):
-        """Setup the artificial star test crowding table.
-
-        Parameters
-        ----------
-        crowding_path : str
-            Path to the artificial star test file (in StarFISH format),
-            relative to the StarFISH directory. A package such as `delphinus`
-            can help make this file from
-            `dolphot` photometry, for example.
-        output_path : str
-            Path where `synth` where write the error lookup table, relative
-            to the StarFISH directory.
-        dbin : length-2 tuple
-            Tuple of (x, y) size of crowding bins, in magnitudes.
-        error_range : length-2 tuple
-            Tuple of (error_min, error_max) span of acceptable magnitudes
-            errors for an artificial star to be considered recovered.
-        binsize : float
-            Binsize of delta-magnitude histograms.
-        error_method : int
-            Flag specifying the method for applying errors to the synthetic
-            CMD. Can be:
-
-            - 0 for regular crowding table lookup
-            - 2 for scatter crowding table lookup
-        """
-        self.error_method = error_method
-        self.crowding_path = path
-        self.crowding_output_path = output_path
-        self._crowd_config = {"dbin": dbin,
-                              "error_range": error_range,
-                              "binsize": binsize}
-        self.error_method = error_method
-
     def run_synth(self, include_unlocked=False):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
         self._write(include_unlocked=include_unlocked)
@@ -230,7 +202,8 @@ class Synth(object):
         if not os.path.exists(self.lockfile.full_synth_dir):
             os.makedirs(self.lockfile.full_synth_dir)
         with EnterStarFishDirectory():
-            command = "./synth < {0}".format(self._synth_config_path)
+            command = "./synth < {0}".format(self.synth_config_path)
+            print(command)
             subprocess.call(command, shell=True)
 
     def _write(self, include_unlocked=False):
@@ -254,7 +227,7 @@ class Synth(object):
         self.old_extinction.write(self.old_av_path)
         lines.append(self.old_av_path)
 
-        lines.append(self.crowding_path)
+        lines.append(self.crowdfile.path)
         lines.append(self.crowding_output_path)
 
         lines.append(str(self.library_builder.nmag))
@@ -263,6 +236,7 @@ class Synth(object):
 
         lines.append(str(self.dpix))
 
+        # CMD section
         for cmd in self._cmds:
             lines.append(cmd['x_str'])
             lines.append(cmd['y_str'])
@@ -273,11 +247,8 @@ class Synth(object):
             lines.append("%.2f" % max(cmd['y_span']))
             lines.append(cmd['suffix'])
 
-        lines.append(str(min(self._crowd_config['dbin'])))
-        lines.append(str(max(self._crowd_config['dbin'])))
-        lines.append(str(min(self._crowd_config['error_range'])))
-        lines.append(str(max(self._crowd_config['error_range'])))
-        lines.append(str(self._crowd_config['binsize']))
+        # Crowding section
+        lines.extend(self.crowdfile.config_section)
 
         for av_ratio in self.rel_extinction:
             lines.append("%.3f" % av_ratio)
@@ -289,7 +260,7 @@ class Synth(object):
         else:
             lines.append("0")
 
-        lines.append(str(self.error_method))
+        lines.append(str(self.crowdfile.error_method))
 
         lines.append(str(self.nstars))
         lines.append(str(self.seed))
