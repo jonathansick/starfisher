@@ -18,7 +18,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 from astropy.table import Table
 
-from starfisher.pathutils import starfish_dir
+from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
 from starfisher.hess import read_hess
 
 
@@ -38,13 +38,9 @@ class Synth(object):
         isochrone library
     lockfile : :class:`Lockfile` instance
         A prepared :class:`Lockfile` instance.
-    crowding_path : str
-        Path to the artificial star test file (in StarFISH format).
-        A package such as `delphinus` can help make this file from `dolphot`
-        photometry, for example.
     input_dir : str
-        Directory where input files are stored for the StarFISH run.
-        Typically this is `'input'`.
+        Directory where input files are stored for the StarFISH run, relative
+        to the StarFISH directory. Typically this is `'input'`.
     rel_extinction : `ndarray`, `(n_bands, 1)`
         Sequence of relative extinction values for each band. The bands must be
         ordered as in the isochrones. One band *must* have a relative
@@ -92,6 +88,42 @@ class Synth(object):
         self.fbinary = fbinary
         self.error_method = 1  # by default assume analytic errors
         self._cmds = []  # add_cmd() inserts data here
+
+    @property
+    def lock_path(self):
+        return os.path.join(self.input_dir, "lock.dat")
+
+    @property
+    def full_lock_path(self):
+        return os.path.join(starfish_dir, self.lock_path)
+
+    @property
+    def synth_config_path(self):
+        return os.path.join(self.input_dir, "synth.dat")
+
+    @property
+    def full_synth_config_path(self):
+        return os.path.join(starfish_dir, self.synth_config_path)
+
+    @property
+    def full_input_dir(self):
+        return os.path.join(starfish_dir, self.input_dir)
+
+    @property
+    def young_av_path(self):
+        return os.path.join(self.input_dir, "young.av")
+
+    @property
+    def full_young_av_path(self):
+        return os.path.join(starfish_dir, self.young_av_path)
+
+    @property
+    def old_av_path(self):
+        return os.path.join(self.input_dir, "old.av")
+
+    @property
+    def full_old_av_path(self):
+        return os.path.join(starfish_dir, self.old_av_path)
 
     @property
     def n_cmd(self):
@@ -162,11 +194,13 @@ class Synth(object):
         Parameters
         ----------
         crowding_path : str
-            Path to the artificial star test file (in StarFISH format).
-            A package such as `delphinus` can help make this file from
+            Path to the artificial star test file (in StarFISH format),
+            relative to the StarFISH directory. A package such as `delphinus`
+            can help make this file from
             `dolphot` photometry, for example.
         output_path : str
-            Path where `synth` where write the error lookup table.
+            Path where `synth` where write the error lookup table, relative
+            to the StarFISH directory.
         dbin : length-2 tuple
             Tuple of (x, y) size of crowding bins, in magnitudes.
         error_range : length-2 tuple
@@ -193,18 +227,19 @@ class Synth(object):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
         self._write(include_unlocked=include_unlocked)
         self._clean()
-        if not os.path.exists(self.lockfile.synth_dir):
-            os.makedirs(self.lockfile.synth_dir)
-        subprocess.call("./synth < %s" % self._synth_config_path, shell=True)
+        if not os.path.exists(self.lockfile.full_synth_dir):
+            os.makedirs(self.lockfile.full_synth_dir)
+        with EnterStarFishDirectory():
+            command = "./synth < {0}".format(self._synth_config_path)
+            subprocess.call(command, shell=True)
 
     def _write(self, include_unlocked=False):
         """Write the `synth` input file."""
-        self._synth_config_path = os.path.join(self.input_dir, "synth.dat")
-        if os.path.exists(self._synth_config_path):
-            os.remove(self._synth_config_path)
+        if os.path.exists(self.full_synth_config_path):
+            os.remove(self.full_synth_config_path)
 
         # Prep lock file and edited isofile
-        self.lockfile.write(os.path.join(self.input_dir, "lock.dat"),
+        self.lockfile.write(self.lock_path,
                             include_unlocked=include_unlocked)
 
         # Create each line of synth input
@@ -213,11 +248,11 @@ class Synth(object):
         lines.append(self.lockfile.synth_isofile_path)  # matches lockfile
         lines.append(self.lockfile.lock_path)
 
-        self.young_extinction.write(os.path.join(self.input_dir, "young.av"))
-        lines.append(self.young_extinction.path)
+        self.young_extinction.write(self.young_av_path)
+        lines.append(self.young_av_path)
 
-        self.old_extinction.write(os.path.join(self.input_dir, "old.av"))
-        lines.append(self.old_extinction.path)
+        self.old_extinction.write(self.old_av_path)
+        lines.append(self.old_av_path)
 
         lines.append(self.crowding_path)
         lines.append(self.crowding_output_path)
@@ -265,13 +300,12 @@ class Synth(object):
         lines.append("%.2f" % self.fbinary)
 
         txt = "\n".join(lines)
-        with open(self._synth_config_path, 'w') as f:
+        with open(self.full_synth_config_path, 'w') as f:
             f.write(txt)
 
     def _clean(self):
         """Remove existing synthetic CMDs."""
-        synthdir = self.lockfile.synth_dir
-        paths = glob.glob(os.path.join(synthdir, "z*"))
+        paths = glob.glob(os.path.join(self.lockfile.full_synth_dir, "z*"))
         for path in paths:
             logging.warning("Removing %s" % path)
             os.remove(path)
@@ -370,16 +404,20 @@ class Lockfile(object):
         The instance of :class:`isolibrary.LibraryBuilder` used to prepare the
         isochrone library
     synth_dir : str
-        Directory name of synthesized CMDs. E.g., `'synth'`.
+        Directory name of synthesized CMDs, relative to the StarFISH
+        directory. E.g., `'synth'`.
     """
     def __init__(self, library_builder, synth_dir):
         super(Lockfile, self).__init__()
         self.library_builder = library_builder
-        self.iso_dir = library_builder.library_dir
         self.synth_dir = synth_dir
         self._index_isochrones()
         self._current_new_group_index = 1
         self._isoc_sel = []  # orders _index by isochrone group
+
+    @property
+    def full_synth_dir(self):
+        return os.path.join(starfish_dir, self.synth_dir)
 
     def _index_isochrones(self):
         """Build an index of installated ischrones, noting filename, age,
@@ -707,16 +745,9 @@ class ExtinctionDistribution(object):
     Synthesized stars will have extinction values drawn randomly from samples
     in the extintion distribution. Uniform extinction can be implemented by
     using only one extinction value.
-
-    Attributes
-    ----------
-
-    path : str
-        Path to the extinction file (available once :meth:`write` is called).
     """
     def __init__(self):
         super(ExtinctionDistribution, self).__init__()
-        self.path = None
         self._extinction_array = None
 
     def set_samples(self, extinction_array):
@@ -748,12 +779,13 @@ class ExtinctionDistribution(object):
         Parameters
         ----------
         path : str
-            Path where extinction file is written.
+            Path where extinction file is written, relative to the StarFISH
+            directory.
         """
-        dirname = os.path.dirname(path)
+        full_path = os.path.join(starfish_dir, path)
+        dirname = os.path.dirname(full_path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
         t = Table([self._extinction_array], names=['A'])
-        t.write(path, format='ascii.no_header', delimiter=' ')
-        self.path = path
+        t.write(full_path, format='ascii.no_header', delimiter=' ')
