@@ -18,6 +18,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 from astropy.table import Table
 
+from starfisher.pathutils import starfish_dir
 from starfisher.hess import read_hess
 
 
@@ -376,7 +377,6 @@ class Lockfile(object):
         self.library_builder = library_builder
         self.iso_dir = library_builder.library_dir
         self.synth_dir = synth_dir
-        self.isofile_path = library_builder.isofile_path
         self._index_isochrones()
         self._current_new_group_index = 1
         self._isoc_sel = []  # orders _index by isochrone group
@@ -386,8 +386,7 @@ class Lockfile(object):
         metallicity. The index includes an empty group index column.
         """
         # Read the isofile to get list of isochrones
-        t = Table.read(self.isofile_path, format='ascii.no_header',
-                       names=['log(age)', 'path', 'output_path', 'msto'])
+        t = self.library_builder.read_isofile()
         paths = t['output_path']
         n_isoc = len(paths)
         # The _index lists isochrones and grouping info for lockfile
@@ -590,7 +589,7 @@ class Lockfile(object):
         Parameters
         ----------
         path : str
-            Filename of lockfile.
+            Filename of lockfile, relative to StarFISH.
         include_unlocked : bool
             If `True` then any isochrones not formally included in a
             group will be automatically placed in singleton groups. If
@@ -611,7 +610,8 @@ class Lockfile(object):
         - isoname[up to 40 characters]
         - synthfilestem [up to 40 characters]
         """
-        dirname = os.path.dirname(path)
+        full_path = os.path.join(starfish_dir, path)
+        dirname = os.path.dirname(full_path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
@@ -620,7 +620,7 @@ class Lockfile(object):
         lockdata = self._index[sel]
 
         t = Table(lockdata)
-        t.write(path, format='ascii.fixed_width_no_header', delimiter=' ',
+        t.write(full_path, format='ascii.fixed_width_no_header', delimiter=' ',
                 bookend=False, delimiter_pad=None,
                 include_names=['group', 'path', 'name'],
                 formats={"group": "%03i", "path": "%s", "name": "%s"})
@@ -631,8 +631,9 @@ class Lockfile(object):
                                                   sel)
 
         # also make sure synth dir is ready
-        if not os.path.exists(self.synth_dir):
-            os.makedirs(self.synth_dir)
+        full_synth_dir = os.path.join(starfish_dir, self.synth_dir)
+        if not os.path.exists(full_synth_dir):
+            os.makedirs(full_synth_dir)
 
     def write_cmdfile(self, path):
         """Create the ``cmdfile`` needed by the ``sfh`` program.

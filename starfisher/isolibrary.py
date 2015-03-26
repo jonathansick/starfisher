@@ -120,7 +120,7 @@ class LibraryBuilder(object):
         """
         # Read the actual isofile because it has already been edited
         # for bad isochrones
-        t = self._read_isofile()
+        t = self.read_isofile()
         t2 = t[sel]
         t2.write(os.path.join(starfish_dir, path),
                  format='ascii.no_header',
@@ -171,7 +171,7 @@ class LibraryBuilder(object):
                   format='ascii.no_header',
                   delimiter=' ')
 
-    def _read_isofile(self):
+    def read_isofile(self):
         t = Table.read(self.full_isofile_path,
                        format='ascii.no_header',
                        names=['log(age)', 'path', 'output_path', 'msto'])
@@ -208,7 +208,7 @@ class LibraryBuilder(object):
         """Verifies that all isochrones written by `mklib` are valid (not
         all NaN). Removes those isochrones from the isofile if necessary.
         """
-        t = self._read_isofile()
+        t = self.read_isofile()
         remove_indices = []
         for i, row in enumerate(t):
             isvalid = self._check_lib_isochrone(row['output_path'])
