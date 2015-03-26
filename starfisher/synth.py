@@ -147,8 +147,8 @@ class Synth(object):
         Parameters
         ----------
         x_mag : int or tuple
-            Indices (1-based) of bands to form the x-axis. If `x_mag` is a
-            float, then the x-axis is that magnitude. If `x_mag` is a
+            Indices (0-based) of bands to form the x-axis. If `x_mag` is a
+            int, then the x-axis is that magnitude. If `x_mag` is a
             length-2 tuple, then the x-axis is the difference (colour) of
             those two magnitudes.
         y_mag : int or tuple
@@ -172,13 +172,13 @@ class Synth(object):
             latex formatting.
         """
         if not isinstance(x_mag, int):
-            x_str = "-".join([str(i) for i in x_mag])
+            x_str = "-".join([str(i + 1) for i in x_mag])
         else:
-            x_str = str(x_mag)
+            x_str = str(x_mag + 1)
         if not isinstance(y_mag, int):
-            y_str = "-".join([str(i) for i in y_mag])
+            y_str = "-".join([str(i + 1) for i in y_mag])
         else:
-            y_str = str(y_mag)
+            y_str = str(y_mag + 1)
         cmd_def = {'x_mag': x_mag, 'y_mag': y_mag,
                    "x_str": x_str, "y_str": y_str,
                    "x_span": x_span, "y_span": y_span,
