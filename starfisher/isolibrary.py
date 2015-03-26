@@ -12,23 +12,23 @@ import subprocess
 
 from astropy.table import Table
 
+from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
+
 
 class LibraryBuilder(object):
-    """Setup an ischrone library.
-
-    .. note: Note that this class assumes it is being called from the root of
-       the StarFISH directory.
+    """Setup an isochrone library.
 
     Parameters
     ----------
     input_dir : str
-        Directory where input files are stored for the StarFISH run.
-        Typically this is `'input'`.
+        Directory where input files are stored for the StarFISH run, relative
+        to the StarFISH directory. Typically this is `'input'`.
     isoc_src_dir : str
         Name of the directory with raw isochrones, relative to the root of
         the StarFISH directory.
     lib_dir : float
-        Directory where the isochrones will be installed by ``mklib``.
+        Directory where the isochrones will be installed by ``mklib``,
+        relative to the root of the StarFISH directory.
     faint : float
         Faint magnitude limit for output isochrone library (according to
         filter at `mag0` index). Should be several mag fainter than the
@@ -66,18 +66,65 @@ class LibraryBuilder(object):
         self.mag0 = mag0
         self.iverb = iverb
         for dirname in (self.input_dir, self.isoc_src_dir, self._iso_dir):
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+            full_path = os.path.join(starfish_dir, dirname)
+            if not os.path.exists(full_path):
+                os.makedirs(full_path)
 
     @property
     def isofile_path(self):
-        """Path to the ``isofile`` used by ``mklib``."""
+        """StarFish-relative path to the ``isofile`` used by ``mklib``."""
         return self._isofile_path
+
+    @property
+    def full_isofile_path(self):
+        """Absolute path to the ``isofile`` used by ``mklib``."""
+        return os.path.join(starfish_dir, self._isofile_path)
 
     @property
     def library_dir(self):
         """Path to directory with isochrones built by `mklib`."""
         return self._iso_dir
+
+    @property
+    def full_library_dir(self):
+        """Path to directory with isochrones built by `mklib`."""
+        return os.path.join(starfish_dir, self._iso_dir)
+
+    def install(self):
+        """Runs `mklib` to install the parsed isochrones into the isochrone
+        library directory.
+        """
+        tbl = self._build_isofile_table()
+        self._write_isofile(tbl)
+        self._build_libdat()
+        self._clean_isodir()
+        with EnterStarFishDirectory():
+            command = './mklib < {0}'.format(self._libdat_path)
+            subprocess.call(command, shell=True)
+        self._check_library()
+
+    def write_edited_isofile(self, path, sel):
+        """Write a new version of the `isofile`, included only isochrones
+        included in the `sel` index.
+
+        This method is intended to by used be `synth` to create a version
+        of the `isofile` that only has as many isochrones as are included
+        in the `lockfile`.
+
+        Parameters
+        ----------
+        path : str
+            Filepath of the new isofile, relative to starfish
+        sel : ndarray
+            Numpy index array, selecting isochrones.
+        """
+        # Read the actual isofile because it has already been edited
+        # for bad isochrones
+        t = self._read_isofile()
+        t2 = t[sel]
+        t2.write(os.path.join(starfish_dir, path),
+                 format='ascii.no_header',
+                 delimiter=' ')
 
     def _build_isofile_table(self):
         """Build an isofile, specifying each isochrone file.
@@ -100,46 +147,35 @@ class LibraryBuilder(object):
         probability changes dramatically.
         """
         t = Table(names=('log(age)', 'path', 'output_path', 'msto'),
-                  dtypes=('f4', 'S40', 'S40', 'f4'))
+                  dtype=('f4', 'S40', 'S40', 'f4'))
 
-        isoc_paths = glob.glob(os.path.join(self.isoc_src_dir, "z*"))
+        isoc_paths = glob.glob(os.path.join(starfish_dir,
+                                            self.isoc_src_dir,
+                                            "z*"))
         for p in isoc_paths:
             # exact Z and Age from filename convention
             z_str, age_str = os.path.basename(p)[1:].split('_')
+            rel_path = os.path.relpath(p, starfish_dir)
             basepath = os.path.basename(p)
             output_path = os.path.join(self._iso_dir, basepath)
-            t.add_row((float(age_str), p, output_path, 100.))
+            t.add_row((float(age_str), rel_path, output_path, 100.))
 
         return t
 
     def _write_isofile(self, tbl):
         """Write the isofile table to `self.isofile_path`."""
-        if os.path.exists(self._isofile_path):
-            os.remove(self._isofile_path)
-        tbl.write(self._isofile_path, format='ascii.no_header', delimiter=' ')
+        if os.path.exists(self.full_isofile_path):
+            os.remove(self.full_isofile_path)
+        print "full_isofile_path", self.full_isofile_path
+        tbl.write(self.full_isofile_path,
+                  format='ascii.no_header',
+                  delimiter=' ')
 
-    def write_edited_isofile(self, path, sel):
-        """Write a new version of the `isofile`, included only isochrones
-        included in the `sel` index.
-
-        This method is intended to by used be `synth` to create a version
-        of the `isofile` that only has as many isochrones as are included
-        in the `lockfile`.
-
-        Parameters
-        ----------
-        path : str
-            Filepath of the new isofile.
-        sel : ndarray
-            Numpy index array, selecting isochrones.
-        """
-        # Read the actual isofile because it has already been edited
-        # for bad isochrones
-        t = Table.read(self._isofile_path,
+    def _read_isofile(self):
+        t = Table.read(self.full_isofile_path,
                        format='ascii.no_header',
                        names=['log(age)', 'path', 'output_path', 'msto'])
-        t2 = t[sel]
-        t2.write(path, format='ascii.no_header', delimiter=' ')
+        return t
 
     def _build_libdat(self):
         """Build the library data file, used by `mklib`.
@@ -154,36 +190,25 @@ class LibraryBuilder(object):
                                  nmag=self.nmag,
                                  mag0=self.mag0,
                                  iverb=self.iverb)
-        if os.path.exists(self._libdat_path):
-            os.remove(self._libdat_path)
-        with open(self._libdat_path, 'w') as f:
+        full_path = os.path.join(starfish_dir, self._libdat_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+        with open(full_path, 'w') as f:
             f.write(datstr)
 
     def _clean_isodir(self):
         """Remove pre-existing isochrones from the isochrone installation dir,
         `iso/`.
         """
-        paths = glob.glob(os.path.join(self._iso_dir, 'z*'))
+        paths = glob.glob(os.path.join(self.full_library_dir, 'z*'))
         for p in paths:
             os.remove(p)
-
-    def install(self):
-        """Runs `mklib` to install the parsed isochrones into the isochrone
-        library directory.
-        """
-        tbl = self._build_isofile_table()
-        self._write_isofile(tbl)
-        self._build_libdat()
-        self._clean_isodir()
-        subprocess.call('./mklib < %s' % self._libdat_path, shell=True)
-        self._check_library()
 
     def _check_library(self):
         """Verifies that all isochrones written by `mklib` are valid (not
         all NaN). Removes those isochrones from the isofile if necessary.
         """
-        t = Table.read(self.isofile_path, format='ascii.no_header',
-                       names=['log(age)', 'path', 'output_path', 'msto'])
+        t = self._read_isofile()
         remove_indices = []
         for i, row in enumerate(t):
             isvalid = self._check_lib_isochrone(row['output_path'])
@@ -197,7 +222,7 @@ class LibraryBuilder(object):
 
     def _check_lib_isochrone(self, isocpath):
         """Check if `mklib` output isochrone file contains NaNs."""
-        with open(isocpath, 'r') as f:
+        with open(os.path.join(starfish_dir, isocpath), 'r') as f:
             for line in f:
                 if "nan" in line:
                     return False
