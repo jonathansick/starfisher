@@ -12,14 +12,14 @@ import logging
 
 import numpy as np
 from scipy.stats import mode
-import matplotlib as mpl
+from astropy.table import Table
+
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
-from astropy.table import Table
 
 from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
-from starfisher.hess import read_hess
+from starfisher.plots import plot_synth_hess
 
 
 class Synth(object):
@@ -321,29 +321,6 @@ class Synth(object):
                    format="png", dpi=300,
                    figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
-        _ = read_hess(synth_path,
-                      cmd['x_span'], cmd['y_span'], self.dpix, flipx=flipx,
-                      flipy=flipy)
-        hess, extent, origin = _
-
-        # Get synthetic Z and logA from filename
-        # basename = os.path.splitext(os.path.basename(synth_path))[0][1:]
-        # zstr, logastr = basename.split("_")
-        # print "strings", zstr, logastr
-        # Z = float(zstr) / 10000.
-        # logA = float(logastr)
-        Z = self.lockfile.mean_z_for_group(name)
-        logA = self.lockfile.mean_age_for_group(name)
-
-        ZZsol = np.log10(Z / 0.019)
-        age_gyr = 10. ** (logA - 9.)
-        print "age_gyr", age_gyr
-        z_str = r"$Z=%.4f$; $\log(Z/Z_\odot)=%.2f$" % (Z, ZZsol)
-        if age_gyr >= 1.:
-            age_str = r"$\log(A)=%.2f$; $%.1f$ Gyr" % (logA, age_gyr)
-        else:
-            age_str = r"$\log(A)=%.2f$; $%i$ Myr" % (logA, age_gyr * 10. ** 3.)
-
         fig = Figure(figsize=figsize)
         canvas = FigureCanvas(fig)
         gs = gridspec.GridSpec(1, 1,
@@ -351,20 +328,10 @@ class Synth(object):
                                wspace=None, hspace=None,
                                width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
-        ax.imshow(np.log10(hess),
-                  cmap=mpl.cm.gray_r, norm=None,
-                  aspect=aspect,
-                  interpolation='none',
-                  extent=extent, origin=origin,
-                  alpha=None, vmin=None, vmax=None)
-        ax.set_xlabel(cmd['x_label'])
-        ax.set_ylabel(cmd['y_label'])
-        # title = synth_path
-        # title = title.replace("_", "\_")
-        ax.text(0.1, 0.9, age_str, ha='left', va='baseline',
-                transform=ax.transAxes)
-        ax.text(0.1, 0.8, z_str, ha='left', va='baseline',
-                transform=ax.transAxes)
+        plot_synth_hess(synth_path, ax, cmd['x_span'], cmd['y_span'],
+                        self.dpix,
+                        xlabel=cmd['x_label'], ylabel=cmd['y_label'],
+                        flipx=flipx, flipy=flipy)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plot_path + "." + format, format=format, dpi=dpi)
 
