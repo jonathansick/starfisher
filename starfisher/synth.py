@@ -315,9 +315,10 @@ class Synth(object):
                     logging.warning("plot_all_hess: %s does not exist"
                                     % synth_path)
                     continue
-                self._plot_hess(synth_path, plot_path, cmd, **plot_args)
+                self._plot_hess(synth_path, plot_path, name, cmd, **plot_args)
 
-    def _plot_hess(self, synth_path, plot_path, cmd, format="png", dpi=300,
+    def _plot_hess(self, synth_path, plot_path, name, cmd,
+                   format="png", dpi=300,
                    figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
         _ = read_hess(synth_path,
@@ -326,13 +327,17 @@ class Synth(object):
         hess, extent, origin = _
 
         # Get synthetic Z and logA from filename
-        basename = os.path.splitext(os.path.basename(synth_path))[0][1:]
-        zstr, logastr = basename.split("_")
-        Z = float(zstr) / 10000.
-        logA = float(logastr)
+        # basename = os.path.splitext(os.path.basename(synth_path))[0][1:]
+        # zstr, logastr = basename.split("_")
+        # print "strings", zstr, logastr
+        # Z = float(zstr) / 10000.
+        # logA = float(logastr)
+        Z = self.lockfile.mean_z_for_group(name)
+        logA = self.lockfile.mean_age_for_group(name)
 
         ZZsol = np.log10(Z / 0.019)
         age_gyr = 10. ** (logA - 9.)
+        print "age_gyr", age_gyr
         z_str = r"$Z=%.4f$; $\log(Z/Z_\odot)=%.2f$" % (Z, ZZsol)
         if age_gyr >= 1.:
             age_str = r"$\log(A)=%.2f$; $%.1f$ Gyr" % (logA, age_gyr)
@@ -346,7 +351,8 @@ class Synth(object):
                                wspace=None, hspace=None,
                                width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
-        ax.imshow(hess, cmap=mpl.cm.gray_r, norm=None,
+        ax.imshow(np.log10(hess),
+                  cmap=mpl.cm.gray_r, norm=None,
                   aspect=aspect,
                   interpolation='none',
                   extent=extent, origin=origin,
@@ -390,36 +396,6 @@ class Lockfile(object):
     def full_synth_dir(self):
         return os.path.join(starfish_dir, self.synth_dir)
 
-    def _index_isochrones(self):
-        """Build an index of installated ischrones, noting filename, age,
-        metallicity. The index includes an empty group index column.
-        """
-        # Read the isofile to get list of isochrones
-        t = self.library_builder.read_isofile()
-        paths = t['output_path']
-        n_isoc = len(paths)
-        # The _index lists isochrones and grouping info for lockfile
-        dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
-                       ('path', 'S40'), ('name', 'S40'),
-                       ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float),
-                       ('mean_group_age', np.float),
-                       ('mean_group_z', np.float)])
-        self._index = np.empty(n_isoc, dtype=dt)
-        for i, p in enumerate(paths):
-            z_str, age_str = os.path.basename(p)[1:].split('_')
-            Z = float("0." + z_str)
-            age = float(age_str)
-            self._index['age'][i] = age
-            self._index['Z'][i] = Z
-            self._index['z_str'][i] = z_str
-            self._index['age_str'][i] = age_str
-            self._index['path'][i] = p
-            self._index['name'][i] = " " * 40
-            self._index['dt'][i] = np.nan
-            self._index['mean_group_age'][i] = np.nan
-            self._index['mean_group_z'][i] = np.nan
-        self._index['group'][:] = 0
-
     @property
     def active_groups(self):
         """Returns a list of groups that have CMD planes prepared by synth."""
@@ -432,6 +408,14 @@ class Lockfile(object):
             else:
                 logging.warning("Can't find %s" % name)
         return active_groups
+
+    def mean_age_for_group(self, name):
+        i = np.where(self._index['name'] == name)[0][0]
+        return self._index['mean_group_age'][i]
+
+    def mean_z_for_group(self, name):
+        i = np.where(self._index['name'] == name)[0][0]
+        return self._index['mean_group_z'][i]
 
     def lock_grid(self, age_grid, z_groups=None):
         """An easy-to-use method for locking isochrones according to an
@@ -551,6 +535,36 @@ class Lockfile(object):
         # Add these isochrones to the isochrone selector index
         for i in indices:
             self._isoc_sel.append(i)
+
+    def _index_isochrones(self):
+        """Build an index of installated ischrones, noting filename, age,
+        metallicity. The index includes an empty group index column.
+        """
+        # Read the isofile to get list of isochrones
+        t = self.library_builder.read_isofile()
+        paths = t['output_path']
+        n_isoc = len(paths)
+        # The _index lists isochrones and grouping info for lockfile
+        dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
+                       ('path', 'S40'), ('name', 'S40'),
+                       ('z_str', 'S4'), ('age_str', 'S5'), ('dt', np.float),
+                       ('mean_group_age', np.float),
+                       ('mean_group_z', np.float)])
+        self._index = np.empty(n_isoc, dtype=dt)
+        for i, p in enumerate(paths):
+            z_str, age_str = os.path.basename(p)[1:].split('_')
+            Z = float("0." + z_str)
+            age = float(age_str)
+            self._index['age'][i] = age
+            self._index['Z'][i] = Z
+            self._index['z_str'][i] = z_str
+            self._index['age_str'][i] = age_str
+            self._index['path'][i] = p
+            self._index['name'][i] = " " * 40
+            self._index['dt'][i] = np.nan
+            self._index['mean_group_age'][i] = np.nan
+            self._index['mean_group_z'][i] = np.nan
+        self._index['group'][:] = 0
 
     def _include_unlocked_isochrones(self):
         """Creates single-isochrone groups for for isochrones that have
