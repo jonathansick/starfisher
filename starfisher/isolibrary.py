@@ -100,6 +100,7 @@ class LibraryBuilder(object):
         self._clean_isodir()
         with EnterStarFishDirectory():
             command = './mklib < {0}'.format(self._libdat_path)
+            print(command)
             subprocess.call(command, shell=True)
         self._check_library()
 
@@ -166,7 +167,6 @@ class LibraryBuilder(object):
         """Write the isofile table to `self.isofile_path`."""
         if os.path.exists(self.full_isofile_path):
             os.remove(self.full_isofile_path)
-        print "full_isofile_path", self.full_isofile_path
         tbl.write(self.full_isofile_path,
                   format='ascii.no_header',
                   delimiter=' ')

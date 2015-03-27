@@ -306,10 +306,8 @@ class Synth(object):
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
         group_names = self.lockfile.active_groups
-        print("group_names", group_names)
         for name in group_names:
             for cmd in self._cmds:
-                print("suffix", cmd['suffix'])
                 synth_path = os.path.join(starfish_dir, name + cmd['suffix'])
                 basename = os.path.basename(synth_path)
                 plot_path = os.path.join(plotdir, basename)
@@ -465,7 +463,6 @@ class Lockfile(object):
             sort = np.argsort(zvals)
             unique_z = unique_z[sort]
             z_groups = [(zstr,) for zstr in unique_z]
-        # print "z_groups", z_groups
 
         len_age_grid = len(age_grid)
         for z_group in z_groups:
@@ -482,7 +479,6 @@ class Lockfile(object):
             unique_bin_vals = np.unique(indices)
             _all_indices = np.arange(len(self._index), dtype=np.int)
             for i in unique_bin_vals:
-                # print "binval", binval
                 if i == 0 or i == len_age_grid:
                     continue
                 agesel = np.where(indices == i)[0]
@@ -499,7 +495,6 @@ class Lockfile(object):
                 z_str = z_str[2:]
                 stemname = os.path.join(self.synth_dir,
                                         "z%s_%s" % (z_str, age_str))
-                # print "stemname", stemname
                 self._index['group'][sel] = self._current_new_group_index
                 self._index['name'][sel] = stemname
                 self._index['dt'][sel] = dt
@@ -509,8 +504,6 @@ class Lockfile(object):
                 # Add these isochrones to the isochrone selector index
                 for i in sel:
                     self._isoc_sel.append(i)
-                # print self._index['dt'][sel]
-                # print self._index['name'][sel]
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
