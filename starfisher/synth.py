@@ -306,9 +306,11 @@ class Synth(object):
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
         group_names = self.lockfile.active_groups
+        print("group_names", group_names)
         for name in group_names:
             for cmd in self._cmds:
-                synth_path = name + cmd['suffix']
+                print("suffix", cmd['suffix'])
+                synth_path = os.path.join(starfish_dir, name + cmd['suffix'])
                 basename = os.path.basename(synth_path)
                 plot_path = os.path.join(plotdir, basename)
                 if not os.path.exists(synth_path):
@@ -426,7 +428,7 @@ class Lockfile(object):
         active_groups = []
         names = np.unique(self._index['name'])
         for name in names:
-            paths = glob.glob(name + "*")
+            paths = glob.glob(os.path.join(starfish_dir, name + "*"))
             if len(paths) > 0:
                 active_groups.append(name)
             else:
