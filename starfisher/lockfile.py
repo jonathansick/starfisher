@@ -36,6 +36,7 @@ class Lockfile(object):
         self._index_isochrones()
         self._current_new_group_index = 1
         self._isoc_sel = []  # orders _index by isochrone group
+        self._polygons = []
 
     @property
     def full_synth_dir(self):
@@ -81,6 +82,13 @@ class Lockfile(object):
             alone are given as single-item tuples. Metallicites not included
             in the list are ommitted.
 
+            For example::
+
+                [('0150',), ('0190', '0240')]
+
+            will make a group for just the `0150` metallicity isochrones,
+            while grouping `0190` and `0240` together.
+
             If left as ``None``, then isochrones of distinct metallicities
             will not be locked together, and all metallicities will be used.
         """
@@ -93,46 +101,81 @@ class Lockfile(object):
             unique_z = unique_z[sort]
             z_groups = [(zstr,) for zstr in unique_z]
 
-        len_age_grid = len(age_grid)
-        for z_group in z_groups:
-            zsels = [np.where(self._index['z_str'] == zstr)[0]
-                     for zstr in z_group]
-            zsel = np.concatenate(zsels)
-            if zsel.shape[0] == 0:
-                logging.warning("No isochrones for z_group: %s" % z_group)
-                continue
-            ages = self._index['age'][zsel]
-            # Bin ages in this metallicity group
-            indices = np.digitize(ages, age_grid, right=False)
-            # Unique bin values to iterate through
-            unique_bin_vals = np.unique(indices)
-            _all_indices = np.arange(len(self._index), dtype=np.int)
-            for i in unique_bin_vals:
-                if i == 0 or i == len_age_grid:
+        all_z_codes = np.unique(self._index['z_str'])
+        sort = np.argsort(all_z_codes)
+
+        # Iterate over the age grid first
+        for age_i in xrange(len(age_grid) - 1):
+            age_min = age_grid[age_i]
+            age_max = age_grid[age_i + 1]
+
+            for group in z_groups:
+                sels = []
+                for zcode in group:
+                    sels.append(np.where((self._index['age'] >= age_min) &
+                                         (self._index['age'] < age_max) &
+                                         (self._index['z_str'] == zcode))[0])
+                sel = np.concatenate(sels)
+                if len(sel) == 0:
+                    logging.warning("No isochrones found in group "
+                                    "{0:.4f} {1:.4f} {2}".format(age_min,
+                                                                 age_max,
+                                                                 zcode))
                     continue
-                agesel = np.where(indices == i)[0]
-                sel = np.copy(_all_indices[zsel][agesel])
-                age_start = age_grid[i - 1]
-                age_stop = age_grid[i]
-                binages = self._index['age'][sel]
-                binz = self._index['Z'][sel]
-                mean_age = binages.mean()
-                mean_z = binz.mean()
-                dt = 10. ** age_stop - 10. ** age_start
-                age_str = "%05.2f" % mean_age
-                z_str = "%.4f" % mean_z
-                z_str = z_str[2:]
-                stemname = os.path.join(self.synth_dir,
-                                        "z%s_%s" % (z_str, age_str))
+
+                # Compute statistics in this group
+                mean_age = self._index['age'][sel].mean()
+                mean_z = self._index['Z'][sel].mean()
+
+                dt = 10. ** age_max - 10. ** age_min
+                z_str = "{0:.4f}".format(mean_z)[2:]
+                stemname = os.path.join(
+                    self.synth_dir,
+                    "z{0}_{1:05.2f}".format(z_str, mean_age))
+
+                # Persist group data with the isochrones
                 self._index['group'][sel] = self._current_new_group_index
                 self._index['name'][sel] = stemname
                 self._index['dt'][sel] = dt
                 self._index['mean_group_age'][sel] = mean_age
                 self._index['mean_group_z'][sel] = mean_z
-                self._current_new_group_index += 1
+
                 # Add these isochrones to the isochrone selector index
                 for i in sel:
                     self._isoc_sel.append(i)
+
+                # Create a (multi)polygon from this group
+                lock_poly = LockPolygon()
+                for z_group in self._make_contig_z_groups(group):
+                    zsel = np.concatenate(
+                        [np.where(self._index['z_str'] == z)[0]
+                         for z in z_group])
+                    z_min = self._index['Z'][zsel].min()
+                    z_max = self._index['Z'][zsel].max()
+                    lock_poly.add_poly_for_range(age_min, age_max,
+                                                 z_min, z_max)
+                self._polygons.append(lock_poly)
+
+                self._current_new_group_index += 1
+
+    def _make_contig_z_groups(self, group):
+        z_indices = np.unique(self._index['z_str'])
+        z_indices.sort()
+        if len(z_indices) == 1:
+            return (z_indices,)
+        group = np.array(group)
+        group.sort()
+        group_indices = np.zeros(len(group), dtype=int)
+        print "z_indices", z_indices
+        print np.diff(z_indices[::-1])
+        diffs = np.diff(z_indices[::-1])[::-1]
+        for i in np.where(diffs > 1):
+            group_indices[i + 1:] += 1
+        group_vals = np.unique(group_indices)
+        contig_groups = []
+        for i in group_vals:
+            contig_groups.append(group[group_indices == i])
+        return contig_groups
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
@@ -161,21 +204,27 @@ class Lockfile(object):
             Fuzz added to the box so that grid points at the edge of the Z
             span are included.
         """
-        indices = np.where((self._index['age'] > min(age_span) - d_age)
+        indices = np.where((self._index['age'] >= min(age_span) - d_age)
                            & (self._index['age'] < max(age_span) + d_age)
-                           & (self._index['Z'] > min(z_span) - d_z)
+                           & (self._index['Z'] >= min(z_span) - d_z)
                            & (self._index['Z'] < max(z_span) + d_z))[0]
-        self._index['group'][indices] = self._current_new_group_index
         stemname = os.path.join(self.synth_dir, name)
-        self._index['name'][indices] = stemname
         binages = self._index['age'][indices]
         binz = self._index['Z'][indices]
         mean_age = binages.mean()
         mean_z = binz.mean()
         dt = 10. ** max(age_span) - 10. ** min(age_span)  # span in years
         self._index['dt'][indices] = dt
+        self._index['name'][indices] = stemname
         self._index['mean_group_age'][indices] = mean_age
         self._index['mean_group_z'][indices] = mean_z
+        self._index['group'][indices] = self._current_new_group_index
+        poly = LockPolygon()
+        poly.add_poly_for_range(min(age_span) - d_age,
+                                max(age_span) + d_age,
+                                min(z_span) - d_z,
+                                max(z_span) + d_z)
+        self._polygons.append(poly)
         self._current_new_group_index += 1
         # Add these isochrones to the isochrone selector index
         for i in indices:
@@ -349,6 +398,7 @@ class Lockfile(object):
                 names=['amp', 'Z', 'log(age)'],
                 formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
 
+    @property
     def group_dt(self):
         """Return an array of time spans associated with each isochrone group,
         in the same order as isochrones appear in the lockfile.
@@ -362,3 +412,46 @@ class Lockfile(object):
             idx = np.where(self._index['name'] == groupname)[0][0]
             dt[i] = self._index['dt'][idx]
         return dt
+
+    @property
+    def group_polygons(self):
+        return self._polygons
+
+
+class LockPolygon(object):
+    """Multi-polygons to visualize lock groups."""
+    def __init__(self):
+        super(LockPolygon, self).__init__()
+        self._polygons = []
+
+    def add_polgon(self, poly):
+        """Add a polygon with vertices defined as (log(age), z).
+        """
+        self._polygons.append(poly)
+
+    def add_poly_for_range(self, log_age_min, log_age_max,
+                           z_min, z_max):
+        """Add a rectangular polygon.
+
+        Parameters
+        ----------
+        log_age_min : float
+            Minimum log(age).
+        log_age_max : float
+            Maximum log(age)
+        z_min : float
+            Minimum fractional metallicity
+        z_max : float
+            Maximum fractional metallicity
+        """
+        p = [[log_age_min, z_min],
+             [log_age_min, z_max],
+             [log_age_max, z_max],
+             [log_age_max, z_min]]
+        self._polygons.append(np.array(p))
+
+    @property
+    def logage_logzsol_verts(self):
+        for poly in self._polygons:
+            poly[:, 1] = np.log10(poly[:, 1] / 0.019)
+            yield poly

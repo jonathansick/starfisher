@@ -10,6 +10,7 @@ import logging
 import os
 import subprocess
 
+import numpy as np
 from astropy.table import Table
 
 from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
@@ -69,6 +70,9 @@ class LibraryBuilder(object):
             full_path = os.path.join(starfish_dir, dirname)
             if not os.path.exists(full_path):
                 os.makedirs(full_path)
+
+        # Index of isochrones
+        self._isochrones = []
 
     @property
     def isofile_path(self):
@@ -160,7 +164,11 @@ class LibraryBuilder(object):
             basepath = os.path.basename(p)
             output_path = os.path.join(self._iso_dir, basepath)
             t.add_row((float(age_str), rel_path, output_path, 100.))
-
+            self._isochrones.append({"z": float(z_str) / 10000.,
+                                     "log(age)": float(age_str),
+                                     "z_str": z_str,
+                                     "age_str": age_str,
+                                     "rel_path": rel_path})
         return t
 
     def _write_isofile(self, tbl):
@@ -229,3 +237,12 @@ class LibraryBuilder(object):
                 elif "NaN" in line:
                     return False
         return True
+
+    @property
+    def isoc_logages(self):
+        return np.array([isoc['log(age)'] for isoc in self._isochrones])
+
+    @property
+    def isoc_logzsol(self):
+        return np.log10(
+            np.array([isoc['z'] for isoc in self._isochrones]) / 0.019)

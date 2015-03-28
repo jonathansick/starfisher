@@ -6,6 +6,7 @@ Plotting functions for starfisher.
 
 import numpy as np
 import matplotlib as mpl
+from matplotlib.collections import PolyCollection
 
 from starfisher.hess import read_hess
 
@@ -47,3 +48,19 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
         z_str = r"$Z=%.4f$; $\log(Z/Z_\odot)=%.2f$" % (z, ZZsol)
         ax.text(0.1, 0.8, z_str, ha='left', va='baseline',
                 transform=ax.transAxes)
+
+
+def plot_isochrone_logage_logzsol(ax, library):
+    ax.scatter(library.isoc_logages,
+               library.isoc_logzsol,
+               s=12, c='r', linewidths=0., zorder=5)
+
+
+def plot_lock_polygons(ax, lockfile):
+    all_verts = []
+    for multipoly in lockfile.group_polygons:
+        for verts in multipoly.logage_logzsol_verts:
+            all_verts.append(verts)
+    ax.add_collection(PolyCollection(all_verts,
+                                     edgecolors='k',
+                                     linewidths=1.))
