@@ -10,15 +10,15 @@ import matplotlib as mpl
 from starfisher.hess import read_hess
 
 
-def plot_synth_hess(synthfile, ax, xlim, ylim, dpix, imshow_args=None,
-                    xlabel=None, ylabel=None, flipx=False, flipy=False,
+def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
                     log_age=None, z=None):
-    # FIXME should refactor synthfiles so they know their own xlim, ylim, dpix
+    if cmd.is_cmd:
+        flipy = True
+    else:
+        flipy = False
 
-    _ = read_hess(synthfile,
-                  xlim, ylim, dpix, flipx=flipx,
-                  flipy=flipy)
-    hess, extent, origin = _
+    hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span, dpix,
+                                     flipy=flipy)
 
     _imshow = dict(cmap=mpl.cm.gray_r, norm=None,
                    aspect='auto',
@@ -29,18 +29,16 @@ def plot_synth_hess(synthfile, ax, xlim, ylim, dpix, imshow_args=None,
     if imshow_args is not None:
         _imshow.update(imshow_args)
     ax.imshow(np.log10(hess), **_imshow)
-    if xlabel is not None:
-        ax.set_xlabel(xlabel)
-    if ylabel is not None:
-        ax.set_ylabel(ylabel)
+    ax.set_xlabel(cmd.x_label)
+    ax.set_ylabel(cmd.y_label)
 
     if log_age is not None:
-        logA = 10. ** (log_age - 9.)
-        age_gyr = 10. ** (logA - 9.)
+        age_gyr = 10. ** (log_age - 9.)
         if age_gyr >= 1.:
-            age_str = r"$\log(A)=%.2f$; $%.1f$ Gyr" % (logA, age_gyr)
+            age_str = r"$\log(A)=%.2f$; $%.1f$ Gyr" % (log_age, age_gyr)
         else:
-            age_str = r"$\log(A)=%.2f$; $%i$ Myr" % (logA, age_gyr * 10. ** 3.)
+            age_str = r"$\log(A)=%.2f$; $%i$ Myr" % (log_age,
+                                                     age_gyr * 10. ** 3.)
         ax.text(0.1, 0.9, age_str, ha='left', va='baseline',
                 transform=ax.transAxes)
 

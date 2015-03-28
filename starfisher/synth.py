@@ -73,11 +73,15 @@ class Synth(object):
     crowd_output_path : str
         Path where `synth` will write the error lookup table, relative
         to the StarFISH directory.
+    planes : list
+        Optional list of :class:`ColorPlane` instances. Can also set these
+        with the :meth:`add_cmd` method.
     """
     def __init__(self, input_dir, library_builder, lockfile, crowdfile,
                  rel_extinction, young_extinction=None, old_extinction=None,
                  dpix=0.05, nstars=1000000, verb=3, interp_err=True,
-                 seed=256, mass_span=(0.5, 100.), fbinary=0.5):
+                 seed=256, mass_span=(0.5, 100.), fbinary=0.5,
+                 planes=None):
         super(Synth, self).__init__()
         self.library_builder = library_builder
         self.lockfile = lockfile
@@ -95,7 +99,10 @@ class Synth(object):
         self.crowdfile = crowdfile
         self.crowding_output_path = os.path.join(input_dir, "crowd_lookup.dat")
 
-        self._cmds = []  # add_cmd() inserts data here
+        if planes is not None:
+            self._cmds = planes
+        else:
+            self._cmds = []  # add_cmd() inserts data here
 
     @property
     def lock_path(self):
@@ -148,52 +155,9 @@ class Synth(object):
         """
         return len(self.lockfile.active_groups)
 
-    def add_cmd(self, x_mag, y_mag, x_span, y_span, y_crowding_max, suffix,
-                xlabel="x", ylabel="y"):
-        """Add a CMD plane for synthesis.
-
-        Parameters
-        ----------
-        x_mag : int or tuple
-            Indices (0-based) of bands to form the x-axis. If `x_mag` is a
-            int, then the x-axis is that magnitude. If `x_mag` is a
-            length-2 tuple, then the x-axis is the difference (colour) of
-            those two magnitudes.
-        y_mag : int or tuple
-            Equivalent to `x_mag`, but defines the y-axis.
-        x_span : tuple (length-2)
-            Tuple of the minimum and maximum values along the x-axis.
-        y_span : tuple (length-2)
-            Tuple of the minimum and maximum values along the y-axis.
-        y_crowding_max : float
-            Maximum value along the y-axis to use in the crowding table.
-        suffix : str
-            Label for this CMD. E.g., if this CMD is B-V, then the suffix
-            should be `.bv`.
-        xlabel : str
-            Optional label for x-axis of this CMD. Used by `starfisher`'s
-            plotting methods to properly label axes. Can use matplotlib's
-            latex formatting.
-        ylabel : str
-            Optional label for y-axis of this CMD. Used by `starfisher`'s
-            plotting methods to properly label axes. Can use matplotlib's
-            latex formatting.
-        """
-        if not isinstance(x_mag, int):
-            x_str = "-".join([str(i + 1) for i in x_mag])
-        else:
-            x_str = str(x_mag + 1)
-        if not isinstance(y_mag, int):
-            y_str = "-".join([str(i + 1) for i in y_mag])
-        else:
-            y_str = str(y_mag + 1)
-        cmd_def = {'x_mag': x_mag, 'y_mag': y_mag,
-                   "x_str": x_str, "y_str": y_str,
-                   "x_span": x_span, "y_span": y_span,
-                   "y_crowding_max": y_crowding_max,
-                   "suffix": suffix,
-                   "x_label": xlabel, "y_label": ylabel}
-        self._cmds.append(cmd_def)
+    def add_cmd(self, cmd):
+        """Add a CMD plane for synthesis."""
+        self._cmds.append(cmd)
 
     def run_synth(self, include_unlocked=False):
         """Run the StarFISH `synth` code to create synthetic CMDs."""
@@ -238,14 +202,7 @@ class Synth(object):
 
         # CMD section
         for cmd in self._cmds:
-            lines.append(cmd['x_str'])
-            lines.append(cmd['y_str'])
-            lines.append("%.2f" % min(cmd['x_span']))
-            lines.append("%.2f" % max(cmd['x_span']))
-            lines.append("%.2f" % min(cmd['y_span']))
-            lines.append("%.2f" % cmd['y_crowding_max'])
-            lines.append("%.2f" % max(cmd['y_span']))
-            lines.append(cmd['suffix'])
+            lines.extend(cmd.synth_config)
 
         # Crowding section
         lines.extend(self.crowdfile.config_section)
@@ -294,32 +251,28 @@ class Synth(object):
             Resolution of the output.
         figsize : tuple
             Size of matplotlib axes.
-        flipx : bool
-            Reverse orientation of x-axis if ``True``.
-        flipy : bool
-            Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
-        aspect : str
-            Controls aspect of the image axes. Set to ``auto`` for color-
-            magnitude digrams. For color-color diagrams where pixels must
-            have equal aspect, set to ``equal``.
         """
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
         group_names = self.lockfile.active_groups
         for name in group_names:
             for cmd in self._cmds:
-                synth_path = os.path.join(starfish_dir, name + cmd['suffix'])
+                synth_path = os.path.join(starfish_dir, name + cmd.suffix)
                 basename = os.path.basename(synth_path)
                 plot_path = os.path.join(plotdir, basename)
                 if not os.path.exists(synth_path):
                     logging.warning("plot_all_hess: %s does not exist"
                                     % synth_path)
                     continue
-                self._plot_hess(synth_path, plot_path, name, cmd, **plot_args)
+                self._plot_hess(synth_path, plot_path, name, cmd,
+                                log_age=self.lockfile.mean_age_for_group(name),
+                                z=self.lockfile.mean_z_for_group(name),
+                                **plot_args)
 
     def _plot_hess(self, synth_path, plot_path, name, cmd,
+                   log_age=None, z=None,
                    format="png", dpi=300,
-                   figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
+                   figsize=(4, 4), aspect='auto'):
         """Plot a Hess diagram for a single synthesized image."""
         fig = Figure(figsize=figsize)
         canvas = FigureCanvas(fig)
@@ -328,10 +281,8 @@ class Synth(object):
                                wspace=None, hspace=None,
                                width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
-        plot_synth_hess(synth_path, ax, cmd['x_span'], cmd['y_span'],
-                        self.dpix,
-                        xlabel=cmd['x_label'], ylabel=cmd['y_label'],
-                        flipx=flipx, flipy=flipy)
+        plot_synth_hess(synth_path, ax, cmd, self.dpix,
+                        log_age=log_age, z=z)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plot_path + "." + format, format=format, dpi=dpi)
 
@@ -736,3 +687,77 @@ class ExtinctionDistribution(object):
 
         t = Table([self._extinction_array], names=['A'])
         t.write(full_path, format='ascii.no_header', delimiter=' ')
+
+
+class ColorPlane(object):
+    """Define a CMD or color-color plane for synth to build.
+
+    Parameters
+    ----------
+    x_mag : int or tuple
+        Indices (0-based) of bands to form the x-axis. If `x_mag` is a
+        int, then the x-axis is that magnitude. If `x_mag` is a
+        length-2 tuple, then the x-axis is the difference (colour) of
+        those two magnitudes.
+    y_mag : int or tuple
+        Equivalent to `x_mag`, but defines the y-axis.
+    x_span : tuple (length-2)
+        Tuple of the minimum and maximum values along the x-axis.
+    y_span : tuple (length-2)
+        Tuple of the minimum and maximum values along the y-axis.
+    y_crowding_max : float
+        Maximum value along the y-axis to use in the crowding table.
+    suffix : str
+        Label for this CMD. E.g., if this CMD is B-V, then the suffix
+        should be `.bv`.
+    x_label : str
+        Optional label for x-axis of this CMD. Used by `starfisher`'s
+        plotting methods to properly label axes. Can use matplotlib's
+        latex formatting.
+    y_label : str
+        Optional label for y-axis of this CMD. Used by `starfisher`'s
+        plotting methods to properly label axes. Can use matplotlib's
+        latex formatting.
+    """
+    def __init__(self, x_mag, y_mag, x_span, y_span, y_crowding_max,
+                 suffix=None, x_label="x", y_label="y"):
+        super(ColorPlane, self).__init__()
+        if isinstance(y_mag, int):
+            self._is_cmd = True
+        else:
+            self._is_cmd = False
+        if not isinstance(x_mag, int):
+            x_str = "-".join([str(i + 1) for i in x_mag])
+        else:
+            x_str = str(x_mag + 1)
+        if not isinstance(y_mag, int):
+            y_str = "-".join([str(i + 1) for i in y_mag])
+        else:
+            y_str = str(y_mag + 1)
+        if suffix is None:
+            suffix = "".join((x_str, y_str)).replace('-', '')
+        self.suffix = suffix
+        self.x_str = x_str
+        self.y_str = y_str
+        self.x_span = x_span
+        self.y_span = y_span
+        self.y_crowding_max = y_crowding_max
+        self.x_label = x_label
+        self.y_label = y_label
+
+    @property
+    def is_cmd(self):
+        return self._is_cmd
+
+    @property
+    def synth_config(self):
+        lines = []
+        lines.append(self.x_str)
+        lines.append(self.y_str)
+        lines.append("%.2f" % min(self.x_span))
+        lines.append("%.2f" % max(self.x_span))
+        lines.append("%.2f" % min(self.y_span))
+        lines.append("%.2f" % self.y_crowding_max)
+        lines.append("%.2f" % max(self.y_span))
+        lines.append(self.suffix)
+        return lines
