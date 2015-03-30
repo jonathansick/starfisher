@@ -50,17 +50,20 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
                 transform=ax.transAxes)
 
 
-def plot_isochrone_logage_logzsol(ax, library):
+def plot_isochrone_logage_logzsol(ax, library, **args):
+    scatter_args = dict(s=4, marker='o', c='r',
+                        linewidths=0., zorder=5)
+    scatter_args.update(args)
     ax.scatter(library.isoc_logages,
                library.isoc_logzsol,
-               s=12, c='r', linewidths=0., zorder=5)
+               **scatter_args)
 
 
-def plot_lock_polygons(ax, lockfile):
+def plot_lock_polygons(ax, lockfile, **args):
+    defaults = dict(edgecolors='k', linewidths=1.)
+    defaults.update(args)
     all_verts = []
     for multipoly in lockfile.group_polygons:
         for verts in multipoly.logage_logzsol_verts:
-            all_verts.append(verts)
-    ax.add_collection(PolyCollection(all_verts,
-                                     edgecolors='k',
-                                     linewidths=1.))
+            all_verts.append(np.array(verts))
+    ax.add_collection(PolyCollection(all_verts, **defaults))

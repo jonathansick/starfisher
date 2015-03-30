@@ -453,5 +453,6 @@ class LockPolygon(object):
     @property
     def logage_logzsol_verts(self):
         for poly in self._polygons:
-            poly[:, 1] = np.log10(poly[:, 1] / 0.019)
-            yield poly
+            p = np.array(poly)
+            p[:, 1] = np.log10(p[:, 1] / 0.019)
+            yield p
