@@ -164,11 +164,17 @@ class Lockfile(object):
     def _make_contig_z_groups(self, group):
         z_indices = np.unique(self._index['z_str'])
         z_indices.sort()
-        contig_group = []
-        for zi in z_indices:
+        contig_groups = []
+        last_group_i = None
+        for i, zi in enumerate(z_indices):
             if zi in group:
-                contig_group.append(contig_group)
-        return (list(contig_group),)
+                if last_group_i is not None and ((i - last_group_i) == 1):
+                    contig_groups[-1].append(zi)
+                else:
+                    contig_groups.append([zi])
+                last_group_i = i
+
+        return contig_groups
         # return (z_indices,)
         # if len(z_indices) == 1:
         #     return (z_indices,)
