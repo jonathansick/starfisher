@@ -20,13 +20,18 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
 
     hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span, dpix,
                                      flipy=flipy)
+    hess = np.log10(hess)
+    hess = np.ma.masked_where(~np.isfinite(hess), hess)
 
-    _imshow = dict(cmap=mpl.cm.gray_r, norm=None,
+    _imshow = dict(cmap=mpl.cm.gray_r,
+                   norm=None,
                    aspect='auto',
                    interpolation='none',
                    extent=extent,
                    origin=origin,
-                   alpha=None, vmin=None, vmax=None)
+                   alpha=None,
+                   vmin=None,
+                   vmax=None)
     if imshow_args is not None:
         _imshow.update(imshow_args)
     ax.imshow(np.log10(hess), **_imshow)
