@@ -161,21 +161,22 @@ class Lockfile(object):
     def _make_contig_z_groups(self, group):
         z_indices = np.unique(self._index['z_str'])
         z_indices.sort()
-        if len(z_indices) == 1:
-            return (z_indices,)
-        group = np.array(group)
-        group.sort()
-        group_indices = np.zeros(len(group), dtype=int)
-        print "z_indices", z_indices
-        print np.diff(z_indices[::-1])
-        diffs = np.diff(z_indices[::-1])[::-1]
-        for i in np.where(diffs > 1):
-            group_indices[i + 1:] += 1
-        group_vals = np.unique(group_indices)
-        contig_groups = []
-        for i in group_vals:
-            contig_groups.append(group[group_indices == i])
-        return contig_groups
+        return (z_indices,)
+        # if len(z_indices) == 1:
+        #     return (z_indices,)
+        # group = np.array(group)
+        # group.sort()
+        # group_indices = np.zeros(len(group), dtype=int)
+        # print "z_indices", z_indices
+        # print np.diff(z_indices[::-1])
+        # diffs = np.diff(z_indices[::-1])[::-1]
+        # for i in np.where(diffs > 1):
+        #     group_indices[i + 1:] += 1
+        # group_vals = np.unique(group_indices)
+        # contig_groups = []
+        # for i in group_vals:
+        #     contig_groups.append(group[group_indices == i])
+        # return contig_groups
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
