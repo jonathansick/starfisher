@@ -74,6 +74,8 @@ class LibraryBuilder(object):
         # Index of isochrones
         self._isochrones = []
 
+        self._build_isofile_table()
+
     @property
     def isofile_path(self):
         """StarFish-relative path to the ``isofile`` used by ``mklib``."""
