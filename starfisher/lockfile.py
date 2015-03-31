@@ -301,14 +301,17 @@ class Lockfile(object):
         """Assuming that ischrones are sampled from a regular grid of log(age),
         this method finds the cell size of that log(age) grid.
         """
-        unique_age_str, indices = np.unique(self._index['age_str'],
-                                            return_index=True)
-        age_grid = self._index['age'][indices]
-        sort = np.argsort(age_grid)
-        age_grid = age_grid[sort]
-        diffs = np.diff(age_grid)
-        dage = mode(diffs)[0][0]
-        return float(dage)
+        if len(self._index) < 2:
+            return 0.
+        else:
+            unique_age_str, indices = np.unique(self._index['age_str'],
+                                                return_index=True)
+            age_grid = self._index['age'][indices]
+            sort = np.argsort(age_grid)
+            age_grid = age_grid[sort]
+            diffs = np.diff(age_grid)
+            dage = mode(diffs)[0][0]
+            return float(dage)
 
     def write(self, path, include_unlocked=False):
         """Write the lockfile to path.
