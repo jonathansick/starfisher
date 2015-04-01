@@ -9,6 +9,7 @@ import os
 import glob
 import subprocess
 import logging
+import multiprocessing
 
 import numpy as np
 from astropy.table import Table
@@ -158,18 +159,35 @@ class Synth(object):
         """Add a CMD plane for synthesis."""
         self._cmds.append(cmd)
 
-    def run_synth(self, include_unlocked=False):
-        """Run the StarFISH `synth` code to create synthetic CMDs."""
-        self._write(include_unlocked=include_unlocked)
+    def run_synth(self, n_cpu=1, include_unlocked=False):
+        """Run the StarFISH `synth` code to create synthetic CMDs.
+        
+        Parameters
+        ----------
+        n_cpu : int
+            Number of CPUs to run synth with. For `n_cpu` > 1, the lockfile
+            is split up so that several `synth` commands can be run
+            simultaneously.
+        include_unlocked : bool
+            Synthesize isochrones even if they were not explicity inluded in
+            a group in the lockfile.
+        """
+        synth_paths = self._write(n_cpu, include_unlocked)
         self._clean()
+
         if not os.path.exists(self.lockfile.full_synth_dir):
             os.makedirs(self.lockfile.full_synth_dir)
-        with EnterStarFishDirectory():
-            command = "./synth < {0}".format(self.synth_config_path)
-            print(command)
-            subprocess.call(command, shell=True)
+        if n_cpu > 1:
+            pool = multiprocessing.Pool(n_cpu)
+            m = pool.map
+        else:
+            m = map
+        # map synth
+        m(synth_paths)
+        if n_cpu > 1:
+            pool.close()
 
-    def _write(self, include_unlocked=False):
+    def _write(self, n_cpu, include_unlocked):
         """Write the `synth` input file."""
         if os.path.exists(self.full_synth_config_path):
             os.remove(self.full_synth_config_path)
@@ -284,6 +302,13 @@ class Synth(object):
                         log_age=log_age, z=z)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plot_path + "." + format, format=format, dpi=dpi)
+
+
+def _run_synth(synth_config_path):
+    with EnterStarFishDirectory():
+        command = "./synth < {0}".format(synth_config_path)
+        print(command)
+        subprocess.call(command, shell=True)
 
 
 class ExtinctionDistribution(object):
