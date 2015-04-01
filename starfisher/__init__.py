@@ -5,4 +5,5 @@ from starfisher.synth import ExtinctionDistribution  # NOQA
 from starfisher.synth import ColorPlane  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
 from starfisher.crowd import MockNullCrowdingTable  # NOQA
+from starfisher.crowd import ExtantCrowdingTable  # NOQA
 from starfisher.plots import plot_synth_hess  # NOQA

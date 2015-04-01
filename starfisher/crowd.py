@@ -16,6 +16,8 @@ class BaseCrowdingTable(object):
 
     Parameters
     ----------
+    path : str
+        Path relative to starfish.
     dbin : length-2 tuple
         Tuple of (x, y) size of crowding bins, in magnitudes.
     error_range : length-2 tuple
@@ -63,6 +65,20 @@ class BaseCrowdingTable(object):
     @property
     def error_method(self):
         return str(self._error_method)
+
+
+class ExtantCrowdingTable(BaseCrowdingTable):
+    """Crowding table wrapper for a pre-built crowdfile.
+
+    Parameters
+    ----------
+    path : str
+        Path relative to starfish.
+    **args : dict
+        Arguments for :class:`BaseCrowdingTable`.
+    """
+    def __init__(self, path, **args):
+        super(ExtantCrowdingTable, self).__init__(path, **args)
 
 
 class MockNullCrowdingTable(BaseCrowdingTable):
