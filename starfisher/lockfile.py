@@ -7,6 +7,7 @@ Data structures for lockfiles.
 import os
 import glob
 import logging
+import abc
 
 import numpy as np
 from scipy.stats import mode
@@ -15,32 +16,24 @@ from astropy.table import Table
 from starfisher.pathutils import starfish_dir
 
 
-class Lockfile(object):
-    """Construct lockfiles for :class:`Synth`. Lockfiles tie several degenerate
-    isochrones together, reducing the dimensionality of the star formation
-    history space.
+class BaseLockfile(object):
+    """Docstring for BaseLockfile. """
+    __metaclass__ = abc.ABCMeta
 
-    Parameters
-    ----------
-    library_builder : :class:`isolibrary.LibraryBuilder` instance
-        The instance of :class:`isolibrary.LibraryBuilder` used to prepare the
-        isochrone library
-    synth_dir : str
-        Directory name of synthesized CMDs, relative to the StarFISH
-        directory. E.g., `'synth'`.
-    """
-    def __init__(self, library_builder, synth_dir):
-        super(Lockfile, self).__init__()
-        self.library_builder = library_builder
-        self.synth_dir = synth_dir
-        self._index_isochrones()
-        self._current_new_group_index = 1
-        self._isoc_sel = []  # orders _index by isochrone group
-        self._polygons = []
+    def __init__(self):
+        super(BaseLockfile, self).__init__()
 
     @property
     def full_synth_dir(self):
         return os.path.join(starfish_dir, self.synth_dir)
+
+    @property
+    def lock_path(self):
+        return os.path.join(self.synth_dir, "lock.dat")
+
+    @property
+    def full_lock_path(self):
+        return os.path.join(starfish_dir, self.lock_path)
 
     @property
     def active_groups(self):
@@ -62,6 +55,210 @@ class Lockfile(object):
     def mean_z_for_group(self, name):
         i = np.where(self._index['name'] == name)[0][0]
         return self._index['mean_group_z'][i]
+
+    def _include_unlocked_isochrones(self):
+        """Creates single-isochrone groups for for isochrones that have
+        not otherwise been grouped.
+        """
+        indices = np.where(self._index['group'] == 0)[0]
+        grid_dt = self._estimate_age_grid()
+        self._current_new_group_index = self._index['group'].max() + 1
+        for idx in indices:
+            name = "z%s_%s" % (self._index['z_str'][idx],
+                               self._index['age_str'][idx])
+            self._index['group'][idx] = self._current_new_group_index
+            stemname = os.path.join(self.synth_dir, name)
+            self._index['name'][idx] = stemname
+            logage = self._index['age'][idx]
+            dt = 10. ** (logage + grid_dt / 2.) \
+                - 10. ** (logage - grid_dt / 2.)
+            self._index['dt'][idx] = dt  # years
+            self._index['mean_group_age'][idx] = self._index['age'][idx]
+            self._index['mean_group_z'][idx] = self._index['Z'][idx]
+            self._current_new_group_index += 1
+
+    def _estimate_age_grid(self):
+        """Assuming that ischrones are sampled from a regular grid of log(age),
+        this method finds the cell size of that log(age) grid.
+        """
+        if len(self._index) < 2:
+            return 0.
+        else:
+            unique_age_str, indices = np.unique(self._index['age_str'],
+                                                return_index=True)
+            age_grid = self._index['age'][indices]
+            sort = np.argsort(age_grid)
+            age_grid = age_grid[sort]
+            diffs = np.diff(age_grid)
+            dage = mode(diffs)[0][0]
+            return float(dage)
+
+    def write(self, include_unlocked=False):
+        """Write the lockfile to path.
+
+        Parameters
+        ----------
+        include_unlocked : bool
+            If `True` then any isochrones not formally included in a
+            group will be automatically placed in singleton groups. If
+            `False` then these isochrones are omitted from ``synth`` and
+            other StarFISH computations.
+        """
+        if include_unlocked:
+            self._include_unlocked_isochrones()
+        self._write()
+
+    def _write(self):
+        """Write the lock file to `full_lock_path`.
+
+        Each row of the lockfile has the columns:
+
+        - group id[int]
+        - isoname[up to 40 characters]
+        - synthfilestem [up to 40 characters]
+        """
+        dirname = os.path.dirname(self.full_lock_path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        # Lockfile has just the isochrones needed in it; ordered by group
+        sel = self._build_isochrone_selector()
+        lockdata = self._index[sel]
+
+        t = Table(lockdata)
+        t.write(self.full_lock_path,
+                format='ascii.fixed_width_no_header', delimiter=' ',
+                bookend=False, delimiter_pad=None,
+                include_names=['group', 'path', 'name'],
+                formats={"group": "%03i", "path": "%s", "name": "%s"})
+
+        # Also write the edited isofile
+        # FIXME verify this
+        self.synth_isofile_path = self.library_builder.isofile_path + ".synth"
+        self.library_builder.write_edited_isofile(self.synth_isofile_path,
+                                                  sel)
+
+    def _build_isochrone_selector(self):
+        sel = []
+        for g in self.active_groups:
+            for i in np.where(self._index['group'] == g)[0]:
+                sel.append(i)
+        return np.array(sel, dtype=int)
+
+    def write_cmdfile(self, path):
+        """Create the ``cmdfile`` needed by the ``sfh`` program.
+
+        Parameters
+        ----------
+        path : str
+            Path where the ``cmdfile`` will be created.
+        """
+        active_groups = self.active_groups
+        ndata = np.empty(len(active_groups),
+                         dtype=np.dtype([('Z', np.float),
+                                         ('log(age)', np.float),
+                                         ('path', 'S40')]))
+        for j, groupname in enumerate(active_groups):
+            i = np.where(self._index['name'] == groupname)[0][0]
+            ndata['Z'][j] = self._index['mean_group_z'][i]
+            ndata['log(age)'][j] = self._index['mean_group_age'][i]
+            ndata['path'][j] = self._index['name'][i]
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        t = Table(ndata)
+        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
+                bookend=False, delimiter_pad=None,
+                names=['Z', 'log(age)', 'path'],
+                formats={"Z": "%6.4f", "log(age)": "%5.2f", "path": "%s"})
+
+    def write_holdfile(self, path):
+        """Write the ``holdfile`` needed by the ``sfh`` program.
+
+        .. note:: Currently this hold file places no 'holds' on the star
+           formation history optimization.
+        """
+        active_groups = self.active_groups
+        dt = np.dtype([('amp', np.float), ('Z', np.float),
+                       ('log(age)', np.float)])
+        ndata = np.empty(len(active_groups), dtype=dt)
+        for j, groupname in enumerate(active_groups):
+            i = np.where(self._index['name'] == groupname)[0][0]
+            ndata['amp'][j] = 0.
+            ndata['Z'][j] = self._index['mean_group_z'][i]
+            ndata['log(age)'][j] = self._index['mean_group_age'][i]
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        t = Table(ndata)
+        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
+                bookend=False, delimiter_pad=None,
+                names=['amp', 'Z', 'log(age)'],
+                formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
+
+    @property
+    def group_dt(self):
+        """Return an array of time spans associated with each isochrone group,
+        in the same order as isochrones appear in the lockfile.
+
+        The time spans are in years, and are used to determine star formation
+        rates.
+        """
+        active_groups = self.active_groups
+        dt = np.zeros(len(active_groups))
+        for i, groupname in enumerate(active_groups):
+            idx = np.where(self._index['name'] == groupname)[0][0]
+            dt[i] = self._index['dt'][idx]
+        return dt
+
+    @property
+    def group_polygons(self):
+        return self._polygons
+
+    def split_lockfile(self, n_cpu, include_unlocked=False):
+        """Create :class:`SplitLockfile` instances that contain subsets of
+        the groups.
+        """
+        group_numbers = np.unique(self._index['group'])
+        group_numbers.sort()
+
+        lockfiles = []
+        for i in range(n_cpu):
+            # Group indices to include in this lockfile
+            groups = group_numbers[i::n_cpu]
+            sels = []
+            split_polygons = {}
+            for g in groups:
+                g = int(g)
+                sels.append(np.where(self._index['group'] == g)[0])
+                split_polygons[g] = self._polygons[g]
+            sel = np.concatenate(sels)
+            slf = SplitLockfile(i, self.isofile[sel], self.synth_dir,
+                                self._index[sel], split_polygons)
+            lockfiles.append(slf)
+        return lockfiles
+
+
+class Lockfile(BaseLockfile):
+    """Construct lockfiles for :class:`Synth`. Lockfiles tie several degenerate
+    isochrones together, reducing the dimensionality of the star formation
+    history space.
+
+    Parameters
+    ----------
+    isofile : :class:`astropy.table.Table` instance
+        The isofile table, made with `LibraryBuilder.read_isofile()`.
+    synth_dir : str
+        Directory name of synthesized CMDs, relative to the StarFISH
+        directory. E.g., `'synth'`.
+    """
+    def __init__(self, isofile, synth_dir):
+        super(Lockfile, self).__init__()
+        self.isofile = isofile
+        self.synth_dir = synth_dir
+        self._index_isochrones()
+        self._current_new_group_index = 1
+        self._polygons = {}
 
     def lock_grid(self, age_grid, z_groups=None):
         """An easy-to-use method for locking isochrones according to an
@@ -141,10 +338,6 @@ class Lockfile(object):
                 self._index['mean_group_age'][sel] = mean_age
                 self._index['mean_group_z'][sel] = mean_z
 
-                # Add these isochrones to the isochrone selector index
-                for i in sel:
-                    self._isoc_sel.append(i)
-
                 # Create a (multi)polygon from this group
                 lock_poly = LockPolygon()
                 for z_group in self._make_contig_z_groups(group):
@@ -157,7 +350,7 @@ class Lockfile(object):
                     z_max = self._index['Z'][zsel].max()
                     lock_poly.add_poly_for_range(age_min, age_max,
                                                  z_min, z_max)
-                self._polygons.append(lock_poly)
+                self._polygons[self._current_new_group_index] = lock_poly
 
                 self._current_new_group_index += 1
 
@@ -175,22 +368,6 @@ class Lockfile(object):
                 last_group_i = i
 
         return contig_groups
-        # return (z_indices,)
-        # if len(z_indices) == 1:
-        #     return (z_indices,)
-        # group = np.array(group)
-        # group.sort()
-        # group_indices = np.zeros(len(group), dtype=int)
-        # print "z_indices", z_indices
-        # print np.diff(z_indices[::-1])
-        # diffs = np.diff(z_indices[::-1])[::-1]
-        # for i in np.where(diffs > 1):
-        #     group_indices[i + 1:] += 1
-        # group_vals = np.unique(group_indices)
-        # contig_groups = []
-        # for i in group_vals:
-        #     contig_groups.append(group[group_indices == i])
-        # return contig_groups
 
     def lock_box(self, name, age_span, z_span, d_age=0.001, d_z=0.00001):
         """Lock together isochrones in a box in Age-Z space.
@@ -239,19 +416,14 @@ class Lockfile(object):
                                 max(age_span) + d_age,
                                 min(z_span) - d_z,
                                 max(z_span) + d_z)
-        self._polygons.append(poly)
+        self._polygons[self._current_new_group_index] = poly
         self._current_new_group_index += 1
-        # Add these isochrones to the isochrone selector index
-        for i in indices:
-            self._isoc_sel.append(i)
 
     def _index_isochrones(self):
         """Build an index of installated ischrones, noting filename, age,
         metallicity. The index includes an empty group index column.
         """
-        # Read the isofile to get list of isochrones
-        t = self.library_builder.read_isofile()
-        paths = t['output_path']
+        paths = self.isofile['output_path']
         n_isoc = len(paths)
         # The _index lists isochrones and grouping info for lockfile
         dt = np.dtype([('age', np.float), ('Z', np.float), ('group', np.int),
@@ -275,165 +447,20 @@ class Lockfile(object):
             self._index['mean_group_z'][i] = np.nan
         self._index['group'][:] = 0
 
-    def _include_unlocked_isochrones(self):
-        """Creates single-isochrone groups for for isochrones that have
-        not otherwise been grouped.
-        """
-        indices = np.where(self._index['group'] == 0)[0]
-        grid_dt = self._estimate_age_grid()
-        for idx in indices:
-            name = "z%s_%s" % (self._index['z_str'][idx],
-                               self._index['age_str'][idx])
-            self._index['group'][idx] = self._current_new_group_index
-            stemname = os.path.join(self.synth_dir, name)
-            self._index['name'][idx] = stemname
-            logage = self._index['age'][idx]
-            dt = 10. ** (logage + grid_dt / 2.) \
-                - 10. ** (logage - grid_dt / 2.)
-            self._index['dt'][idx] = dt  # years
-            self._index['mean_group_age'][idx] = self._index['age'][idx]
-            self._index['mean_group_z'][idx] = self._index['Z'][idx]
-            self._current_new_group_index += 1
-            # Add these isochrones to the isochrone selector index
-            self._isoc_sel.append(idx)
 
-    def _estimate_age_grid(self):
-        """Assuming that ischrones are sampled from a regular grid of log(age),
-        this method finds the cell size of that log(age) grid.
-        """
-        if len(self._index) < 2:
-            return 0.
-        else:
-            unique_age_str, indices = np.unique(self._index['age_str'],
-                                                return_index=True)
-            age_grid = self._index['age'][indices]
-            sort = np.argsort(age_grid)
-            age_grid = age_grid[sort]
-            diffs = np.diff(age_grid)
-            dage = mode(diffs)[0][0]
-            return float(dage)
-
-    def write(self, path, include_unlocked=False):
-        """Write the lockfile to path.
-
-        Parameters
-        ----------
-        path : str
-            Filename of lockfile, relative to StarFISH.
-        include_unlocked : bool
-            If `True` then any isochrones not formally included in a
-            group will be automatically placed in singleton groups. If
-            `False` then these isochrones are omitted from ``synth`` and
-            other StarFISH computations.
-        """
-        self.lock_path = path
-        if include_unlocked:
-            self._include_unlocked_isochrones()
-        self._write(path)
-
-    def _write(self, path):
-        """Write the lock file to `path`.
-
-        Each row of the lockfile has the columns:
-
-        - group id[int]
-        - isoname[up to 40 characters]
-        - synthfilestem [up to 40 characters]
-        """
-        full_path = os.path.join(starfish_dir, path)
-        dirname = os.path.dirname(full_path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-
-        # Lockfile has just the isochrones needed in it; ordered by group
-        sel = np.array(self._isoc_sel, dtype=np.int)
-        lockdata = self._index[sel]
-
-        t = Table(lockdata)
-        t.write(full_path, format='ascii.fixed_width_no_header', delimiter=' ',
-                bookend=False, delimiter_pad=None,
-                include_names=['group', 'path', 'name'],
-                formats={"group": "%03i", "path": "%s", "name": "%s"})
-
-        # Also write the edited isofile
-        self.synth_isofile_path = self.library_builder.isofile_path + ".synth"
-        self.library_builder.write_edited_isofile(self.synth_isofile_path,
-                                                  sel)
-
-        # also make sure synth dir is ready
-        full_synth_dir = os.path.join(starfish_dir, self.synth_dir)
-        if not os.path.exists(full_synth_dir):
-            os.makedirs(full_synth_dir)
-
-    def write_cmdfile(self, path):
-        """Create the ``cmdfile`` needed by the ``sfh`` program.
-
-        Parameters
-        ----------
-        path : str
-            Path where the ``cmdfile`` will be created.
-        """
-        active_groups = self.active_groups
-        ndata = np.empty(len(active_groups),
-                         dtype=np.dtype([('Z', np.float),
-                                         ('log(age)', np.float),
-                                         ('path', 'S40')]))
-        for j, groupname in enumerate(active_groups):
-            i = np.where(self._index['name'] == groupname)[0][0]
-            ndata['Z'][j] = self._index['mean_group_z'][i]
-            ndata['log(age)'][j] = self._index['mean_group_age'][i]
-            ndata['path'][j] = self._index['name'][i]
-        dirname = os.path.dirname(path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        t = Table(ndata)
-        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
-                bookend=False, delimiter_pad=None,
-                names=['Z', 'log(age)', 'path'],
-                formats={"Z": "%6.4f", "log(age)": "%5.2f", "path": "%s"})
-
-    def write_holdfile(self, path):
-        """Write the ``holdfile`` needed by the ``sfh`` program.
-
-        .. note:: Currently this hold file places no 'holds' on the star
-           formation history optimization.
-        """
-        active_groups = self.active_groups
-        dt = np.dtype([('amp', np.float), ('Z', np.float),
-                       ('log(age)', np.float)])
-        ndata = np.empty(len(active_groups), dtype=dt)
-        for j, groupname in enumerate(active_groups):
-            i = np.where(self._index['name'] == groupname)[0][0]
-            ndata['amp'][j] = 0.
-            ndata['Z'][j] = self._index['mean_group_z'][i]
-            ndata['log(age)'][j] = self._index['mean_group_age'][i]
-        dirname = os.path.dirname(path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        t = Table(ndata)
-        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
-                bookend=False, delimiter_pad=None,
-                names=['amp', 'Z', 'log(age)'],
-                formats={"amp": "%9.7f", "Z": "%6.4f", "log(age)": "%5.2f"})
+class SplitLockfile(BaseLockfile):
+    """Docstring for SplitLockfile."""
+    def __init__(self, i, isofile, synth_dir, index, polygons):
+        super(SplitLockfile, self).__init__()
+        self._i = i
+        self.isofile = isofile
+        self.synth_dir = synth_dir
+        self._index = index
+        self._polygons = polygons
 
     @property
-    def group_dt(self):
-        """Return an array of time spans associated with each isochrone group,
-        in the same order as isochrones appear in the lockfile.
-
-        The time spans are in years, and are used to determine star formation
-        rates.
-        """
-        active_groups = self.active_groups
-        dt = np.zeros(len(active_groups))
-        for i, groupname in enumerate(active_groups):
-            idx = np.where(self._index['name'] == groupname)[0][0]
-            dt[i] = self._index['dt'][idx]
-        return dt
-
-    @property
-    def group_polygons(self):
-        return self._polygons
+    def lock_path(self):
+        return os.path.join(self.synth_dir, "lock.{0:d}.dat".format(self._i))
 
 
 class LockPolygon(object):
