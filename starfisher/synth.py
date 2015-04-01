@@ -113,14 +113,6 @@ class Synth(object):
         return os.path.join(starfish_dir, self.lock_path)
 
     @property
-    def synth_config_path(self):
-        return os.path.join(self.input_dir, "synth.dat")
-
-    @property
-    def full_synth_config_path(self):
-        return os.path.join(starfish_dir, self.synth_config_path)
-
-    @property
     def full_input_dir(self):
         return os.path.join(starfish_dir, self.input_dir)
 
@@ -188,65 +180,73 @@ class Synth(object):
             pool.close()
 
     def _write(self, n_cpu, include_unlocked):
-        """Write the `synth` input file."""
-        if os.path.exists(self.full_synth_config_path):
-            os.remove(self.full_synth_config_path)
-
+        """Write the `synth` input files."""
+        synth_path_root = os.path.join(self.input_dir, "synth")
         # Prep lock file and edited isofile
         self.lockfile.write(self.lock_path,
                             include_unlocked=include_unlocked)
-
-        # Create each line of synth input
-        lines = []
-
-        lines.append(self.lockfile.synth_isofile_path)  # matches lockfile
-        lines.append(self.lockfile.lock_path)
-
-        self.young_extinction.write(self.young_av_path)
-        lines.append(self.young_av_path)
-
-        self.old_extinction.write(self.old_av_path)
-        lines.append(self.old_av_path)
-
-        lines.append(self.crowdfile.path)
-        lines.append(self.crowding_output_path)
-
-        lines.append(str(self.library_builder.nmag))
-        lines.append(str(len(self._cmds)))
-        lines.append(str(self.library_builder.mag0))
-
-        lines.append(str(self.dpix))
-
-        # CMD section
-        for cmd in self._cmds:
-            lines.extend(cmd.synth_config)
-
-        # Crowding section
-        lines.extend(self.crowdfile.config_section)
-
-        for av_ratio in self.rel_extinction:
-            lines.append("%.3f" % av_ratio)
-
-        lines.append(str(self.verb))
-
-        if self.interp_err:
-            lines.append("1")
+        if n_cpu > 1:
+            lockfiles = self.lockfile.split_lockfile(n_cpu)
         else:
-            lines.append("0")
+            lockfiles = [self.lockfile]
 
-        lines.append(str(self.crowdfile.error_method))
+        synthfiles = []
+        for i, lockfile in enumerate(lockfiles):
+            # Create each line of synth input
+            lines = []
 
-        lines.append(str(self.nstars))
-        lines.append(str(self.seed))
-        lines.append("%.2f" % min(self.mass_span))
-        lines.append("%.2f" % max(self.mass_span))
-        lines.append("%.2f" % self.library_builder.gamma)
-        lines.append("%.2f" % self.library_builder.faint)
-        lines.append("%.2f" % self.fbinary)
+            lines.append(lockfile.synth_isofile_path)  # matches lockfile
+            lines.append(lockfile.lock_path)
 
-        txt = "\n".join(lines)
-        with open(self.full_synth_config_path, 'w') as f:
-            f.write(txt)
+            self.young_extinction.write(self.young_av_path)
+            lines.append(self.young_av_path)
+
+            self.old_extinction.write(self.old_av_path)
+            lines.append(self.old_av_path)
+
+            lines.append(self.crowdfile.path)
+            lines.append(self.crowding_output_path)
+
+            lines.append(str(self.library_builder.nmag))
+            lines.append(str(len(self._cmds)))
+            lines.append(str(self.library_builder.mag0))
+
+            lines.append(str(self.dpix))
+
+            # CMD section
+            for cmd in self._cmds:
+                lines.extend(cmd.synth_config)
+
+            # Crowding section
+            lines.extend(self.crowdfile.config_section)
+
+            for av_ratio in self.rel_extinction:
+                lines.append("%.3f" % av_ratio)
+
+            lines.append(str(self.verb))
+
+            if self.interp_err:
+                lines.append("1")
+            else:
+                lines.append("0")
+
+            lines.append(str(self.crowdfile.error_method))
+
+            lines.append(str(self.nstars))
+            lines.append(str(self.seed))
+            lines.append("%.2f" % min(self.mass_span))
+            lines.append("%.2f" % max(self.mass_span))
+            lines.append("%.2f" % self.library_builder.gamma)
+            lines.append("%.2f" % self.library_builder.faint)
+            lines.append("%.2f" % self.fbinary)
+
+            txt = "\n".join(lines)
+            synth_path = "{0}.{1:d}.txt".format(synth_path_root, i)
+            with open(os.path.join(starfish_dir, synth_path), 'w') as f:
+                f.write(txt)
+            synthfiles.append(synth_path)
+
+        return synthfiles
 
     def _clean(self):
         """Remove existing synthetic CMDs."""
