@@ -106,7 +106,7 @@ class Synth(object):
 
     @property
     def lock_path(self):
-        return os.path.join(self.input_dir, "lock.dat")
+        return self.lockfile.lock_path
 
     @property
     def full_lock_path(self):
@@ -153,7 +153,7 @@ class Synth(object):
 
     def run_synth(self, n_cpu=1, include_unlocked=False):
         """Run the StarFISH `synth` code to create synthetic CMDs.
-        
+
         Parameters
         ----------
         n_cpu : int
