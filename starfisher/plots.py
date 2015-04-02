@@ -76,7 +76,7 @@ def plot_lock_polygons(ax, lockfile, **args):
     defaults = dict(edgecolors='k', linewidths=1.)
     defaults.update(args)
     all_verts = []
-    for multipoly in lockfile.group_polygons:
+    for group, multipoly in lockfile.group_polygons.iteritems():
         for verts in multipoly.logage_logzsol_verts:
             all_verts.append(np.array(verts))
     ax.add_collection(PolyCollection(all_verts, **defaults))

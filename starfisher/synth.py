@@ -175,7 +175,7 @@ class Synth(object):
         else:
             m = map
         # map synth
-        m(synth_paths)
+        m(_run_synth, synth_paths)
         if n_cpu > 1:
             pool.close()
 
@@ -183,15 +183,17 @@ class Synth(object):
         """Write the `synth` input files."""
         synth_path_root = os.path.join(self.input_dir, "synth")
         # Prep lock file and edited isofile
-        self.lockfile.write(self.lock_path,
-                            include_unlocked=include_unlocked)
+        self.lockfile.write(include_unlocked=include_unlocked)
         if n_cpu > 1:
-            lockfiles = self.lockfile.split_lockfile(n_cpu)
+            lockfiles = self.lockfile.split_lockfile(
+                n_cpu, include_unlocked=include_unlocked)
         else:
             lockfiles = [self.lockfile]
 
         synthfiles = []
         for i, lockfile in enumerate(lockfiles):
+            if n_cpu > 1:
+                lockfile.write()
             # Create each line of synth input
             lines = []
 

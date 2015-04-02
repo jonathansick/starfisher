@@ -36,6 +36,14 @@ class BaseLockfile(object):
         return os.path.join(starfish_dir, self.lock_path)
 
     @property
+    def synth_isofile_path(self):
+        return os.path.join(self.synth_dir, "iso.synth")
+
+    @property
+    def full_synth_isofile_path(self):
+        return os.path.join(starfish_dir, self.synth_isofile_path)
+
+    @property
     def active_groups(self):
         """Returns a list of groups that have CMD planes prepared by synth."""
         active_groups = []
@@ -45,7 +53,7 @@ class BaseLockfile(object):
             if len(paths) > 0:
                 active_groups.append(name)
             else:
-                logging.warning("Can't find %s" % name)
+                logging.warning("Lockfile.active_groups: can't find %s" % name)
         return active_groups
 
     def mean_age_for_group(self, name):
@@ -134,13 +142,15 @@ class BaseLockfile(object):
 
         # Also write the edited isofile
         # FIXME verify this
-        self.synth_isofile_path = self.library_builder.isofile_path + ".synth"
-        self.library_builder.write_edited_isofile(self.synth_isofile_path,
-                                                  sel)
+        self.isofile.write(self.full_synth_isofile_path,
+                           format='ascii.no_header',
+                           delimiter=' ')
 
     def _build_isochrone_selector(self):
         sel = []
-        for g in self.active_groups:
+        groups = np.unique(self._index['group'])
+        groups.sort()
+        for g in groups:
             for i in np.where(self._index['group'] == g)[0]:
                 sel.append(i)
         return np.array(sel, dtype=int)
@@ -461,6 +471,10 @@ class SplitLockfile(BaseLockfile):
     @property
     def lock_path(self):
         return os.path.join(self.synth_dir, "lock.{0:d}.dat".format(self._i))
+
+    @property
+    def synth_isofile_path(self):
+        return os.path.join(self.synth_dir, "iso.{0:d}.synth".format(self._i))
 
 
 class LockPolygon(object):
