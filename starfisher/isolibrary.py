@@ -21,9 +21,6 @@ class LibraryBuilder(object):
 
     Parameters
     ----------
-    input_dir : str
-        Directory where input files are stored for the StarFISH run, relative
-        to the StarFISH directory. Typically this is `'input'`.
     isoc_src_dir : str
         Name of the directory with raw isochrones, relative to the root of
         the StarFISH directory.
@@ -50,15 +47,14 @@ class LibraryBuilder(object):
         - 1 = screen messages
         - 2 = extra output files
     """
-    def __init__(self, input_dir, isoc_src_dir, lib_dir,
+    def __init__(self, isoc_src_dir, lib_dir,
                  faint=30., dmag=0.005, dmod=0.,
                  gamma=-1.35, nmag=2, mag0=1, iverb=0):
         super(LibraryBuilder, self).__init__()
-        self.input_dir = input_dir
         self.isoc_src_dir = isoc_src_dir
-        self._iso_dir = lib_dir
-        self._isofile_path = os.path.join(self.input_dir, "isofile")
-        self._libdat_path = os.path.join(self.input_dir, "lib.dat")
+        self._lib_dir = lib_dir
+        self._isofile_path = os.path.join(self._lib_dir, "isofile")
+        self._libdat_path = os.path.join(self._lib_dir, "lib.dat")
         self.faint = faint
         self.dmag = dmag
         self.dmod = dmod
@@ -66,7 +62,7 @@ class LibraryBuilder(object):
         self.nmag = nmag
         self.mag0 = mag0
         self.iverb = iverb
-        for dirname in (self.input_dir, self.isoc_src_dir, self._iso_dir):
+        for dirname in (self.isoc_src_dir, self._lib_dir):
             full_path = os.path.join(starfish_dir, dirname)
             if not os.path.exists(full_path):
                 os.makedirs(full_path)
@@ -89,12 +85,12 @@ class LibraryBuilder(object):
     @property
     def library_dir(self):
         """Path to directory with isochrones built by `mklib`."""
-        return self._iso_dir
+        return self._lib_dir
 
     @property
     def full_library_dir(self):
         """Path to directory with isochrones built by `mklib`."""
-        return os.path.join(starfish_dir, self._iso_dir)
+        return os.path.join(starfish_dir, self._lib_dir)
 
     def install(self):
         """Runs `mklib` to install the parsed isochrones into the isochrone
@@ -164,7 +160,7 @@ class LibraryBuilder(object):
             z_str, age_str = os.path.basename(p)[1:].split('_')
             rel_path = os.path.relpath(p, starfish_dir)
             basepath = os.path.basename(p)
-            output_path = os.path.join(self._iso_dir, basepath)
+            output_path = os.path.join(self._lib_dir, basepath)
             t.add_row((float(age_str), rel_path, output_path, 100.))
             self._isochrones.append({"z": float(z_str) / 10000.,
                                      "log(age)": float(age_str),
