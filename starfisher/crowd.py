@@ -101,4 +101,7 @@ class MockNullCrowdingTable(BaseCrowdingTable):
             mag_label = "mag{0:d}".format(i)
             data[mag_label][:] = (max(self._range) - min(self._range)) \
                 * np.random.random_sample(self._n_stars) + min(self._range)
+        dirname = os.path.dirname(self.full_path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         np.savetxt(self.full_path, data, fmt='%.5e', delimiter=' ')

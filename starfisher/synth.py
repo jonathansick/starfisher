@@ -33,14 +33,13 @@ class Synth(object):
 
     Parameters
     ----------
+    synth_dir : str
+        Directory where synthetic Hess diagrams will be compiled.
     library_builder : :class:`isolibrary.LibraryBuilder` instance
         The instance of :class:`isolibrary.LibraryBuilder` used to prepare the
         isochrone library
     lockfile : :class:`Lockfile` instance
         A prepared :class:`Lockfile` instance.
-    input_dir : str
-        Directory where input files are stored for the StarFISH run, relative
-        to the StarFISH directory. Typically this is `'input'`.
     rel_extinction : `ndarray`, `(n_bands, 1)`
         Sequence of relative extinction values for each band. The bands must be
         ordered as in the isochrones. One band *must* have a relative
@@ -77,7 +76,7 @@ class Synth(object):
         Optional list of :class:`ColorPlane` instances. Can also set these
         with the :meth:`add_cmd` method.
     """
-    def __init__(self, input_dir, library_builder, lockfile, crowdfile,
+    def __init__(self, synth_dir, library_builder, lockfile, crowdfile,
                  rel_extinction, young_extinction=None, old_extinction=None,
                  dpix=0.05, nstars=1000000, verb=3, interp_err=True,
                  seed=256, mass_span=(0.5, 100.), fbinary=0.5,
@@ -85,7 +84,7 @@ class Synth(object):
         super(Synth, self).__init__()
         self.library_builder = library_builder
         self.lockfile = lockfile
-        self.input_dir = input_dir
+        self.synth_dir = synth_dir
         self.rel_extinction = rel_extinction
         self.young_extinction = young_extinction
         self.old_extinction = old_extinction
@@ -97,12 +96,15 @@ class Synth(object):
         self.mass_span = mass_span
         self.fbinary = fbinary
         self.crowdfile = crowdfile
-        self.crowding_output_path = os.path.join(input_dir, "crowd_lookup.dat")
+        self.crowding_output_path = os.path.join(synth_dir, "crowd_lookup.dat")
 
         if planes is not None:
             self._cmds = planes
         else:
             self._cmds = []  # add_cmd() inserts data here
+
+        if not os.path.exists(self.full_synth_dir):
+            os.makedirs(self.full_synth_dir)
 
     @property
     def lock_path(self):
@@ -113,12 +115,12 @@ class Synth(object):
         return os.path.join(starfish_dir, self.lock_path)
 
     @property
-    def full_input_dir(self):
-        return os.path.join(starfish_dir, self.input_dir)
+    def full_synth_dir(self):
+        return os.path.join(starfish_dir, self.synth_dir)
 
     @property
     def young_av_path(self):
-        return os.path.join(self.input_dir, "young.av")
+        return os.path.join(self.synth_dir, "young.av")
 
     @property
     def full_young_av_path(self):
@@ -126,7 +128,7 @@ class Synth(object):
 
     @property
     def old_av_path(self):
-        return os.path.join(self.input_dir, "old.av")
+        return os.path.join(self.synth_dir, "old.av")
 
     @property
     def full_old_av_path(self):
@@ -181,7 +183,6 @@ class Synth(object):
 
     def _write(self, n_cpu, include_unlocked):
         """Write the `synth` input files."""
-        synth_path_root = os.path.join(self.input_dir, "synth")
         # Prep lock file and edited isofile
         self.lockfile.write(include_unlocked=include_unlocked)
         if n_cpu > 1:
@@ -243,7 +244,7 @@ class Synth(object):
             lines.append("%.2f" % self.fbinary)
 
             txt = "\n".join(lines)
-            synth_path = "{0}.{1:d}.txt".format(synth_path_root, i)
+            synth_path = "{0}.{1:d}.txt".format(self.synth_dir, i)
             with open(os.path.join(starfish_dir, synth_path), 'w') as f:
                 f.write(txt)
             synthfiles.append(synth_path)
