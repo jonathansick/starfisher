@@ -318,7 +318,6 @@ class Lockfile(BaseLockfile):
 
             for group in z_groups:
                 sels = []
-                print "group", group
                 for zcode in group:
                     sels.append(np.where((self._index['age'] >= age_min) &
                                          (self._index['age'] < age_max) &
@@ -351,11 +350,9 @@ class Lockfile(BaseLockfile):
                 # Create a (multi)polygon from this group
                 lock_poly = LockPolygon()
                 for z_group in self._make_contig_z_groups(group):
-                    print "z_group", z_group
                     zsel = np.concatenate(
                         [np.where(self._index['z_str'] == z)[0]
                          for z in z_group])
-                    print "zsel", zsel
                     z_min = self._index['Z'][zsel].min()
                     z_max = self._index['Z'][zsel].max()
                     lock_poly.add_poly_for_range(age_min, age_max,
