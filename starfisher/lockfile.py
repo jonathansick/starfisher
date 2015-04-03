@@ -261,14 +261,19 @@ class Lockfile(BaseLockfile):
     synth_dir : str
         Directory name of synthesized CMDs, relative to the StarFISH
         directory. E.g., `'synth'`.
+    unbinned : bool
+        Set to `True` and individual isochrones will automatically
+        be added to their own groups.
     """
-    def __init__(self, isofile, synth_dir):
+    def __init__(self, isofile, synth_dir, unbinned=False):
         super(Lockfile, self).__init__()
         self.isofile = isofile
         self.synth_dir = synth_dir
         self._index_isochrones()
         self._current_new_group_index = 1
         self._polygons = {}
+        if unbinned:
+            self._include_unlocked_isochrones()
 
     def lock_grid(self, age_grid, z_groups=None):
         """An easy-to-use method for locking isochrones according to an
