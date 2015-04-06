@@ -244,7 +244,8 @@ class Synth(object):
             lines.append("%.2f" % self.fbinary)
 
             txt = "\n".join(lines)
-            synth_path = "{0}.{1:d}.txt".format(self.synth_dir, i)
+            synth_path = os.path.join(self.synth_dir,
+                                      "synth.{0:d}.txt".format(i))
             with open(os.path.join(starfish_dir, synth_path), 'w') as f:
                 f.write(txt)
             synthfiles.append(synth_path)
