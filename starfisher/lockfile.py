@@ -179,11 +179,12 @@ class BaseLockfile(object):
             ndata['Z'][j] = self._index['mean_group_z'][i]
             ndata['log(age)'][j] = self._index['mean_group_age'][i]
             ndata['path'][j] = self._index['name'][i]
-        dirname = os.path.dirname(path)
+        full_path = os.path.join(starfish_dir, path)
+        dirname = os.path.dirname(full_path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         t = Table(ndata)
-        t.write(path, format="ascii.fixed_width_no_header", delimiter=' ',
+        t.write(full_path, format="ascii.fixed_width_no_header", delimiter=' ',
                 bookend=False, delimiter_pad=None,
                 names=['Z', 'log(age)', 'path'],
                 formats={"Z": "%6.4f", "log(age)": "%5.2f", "path": "%s"})
