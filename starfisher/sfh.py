@@ -17,6 +17,8 @@ import matplotlib.gridspec as gridspec
 
 from astropy.table import Table, Column
 
+from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
+
 
 class SFH(object):
     """Interface to the StarFISH ``sfh`` program.
@@ -32,30 +34,32 @@ class SFH(object):
     mask : :class:`sfh.Mask` instance
         The instance of :class:`sfh.Mask` specifying how each CMD plane
         should be masked.
-    input_dir : str
+    fit_dir : str
         Direcory where input files are stored for the StarFISH run.
     """
-    def __init__(self, data_root, synth, mask, input_dir):
+    def __init__(self, data_root, synth, mask, fit_dir):
         super(SFH, self).__init__()
         self.data_root = data_root
         self.synth = synth
         self.mask = mask
-        self.input_dir = input_dir
-        self._sfh_config_path = os.path.join(self.input_dir, "sfh.dat")
-        self._outfile_path = os.path.join(self.input_dir, "output.dat")
-        self._hold_path = os.path.join(self.input_dir, "hold.dat")
-        self._log_path = os.path.join(self.input_dir, "sfh.log")
-        self._plg_path = os.path.join(self.input_dir, "plg.log")
-        self._chi_path = os.path.join(self.input_dir, "chi.txt")
+        self.fit_dir = fit_dir
+        self._sfh_config_path = os.path.join(self.fit_dir, "sfh.dat")
+        self._cmd_path = os.path.join(self.fit_dir, "cmd.txt")
+        self._outfile_path = os.path.join(self.fit_dir, "output.dat")
+        self._hold_path = os.path.join(self.fit_dir, "hold.dat")
+        self._mask_path = os.path.join(self.fit_dir, "mask.dat")
+        self._log_path = os.path.join(self.fit_dir, "sfh.log")
+        self._plg_path = os.path.join(self.fit_dir, "plg.log")
+        self._chi_path = os.path.join(self.fit_dir, "chi.txt")
 
     def run_sfh(self):
         """Run the StarFISH `sfh` software."""
-        self.cmd_path = os.path.join(self.input_dir, "cmd.txt")
-        self.synth.lockfile.write_cmdfile(self.cmd_path)
+        self.synth.lockfile.write_cmdfile(self._cmd_path)
         self.synth.lockfile.write_holdfile(self._hold_path)
-        self.mask.write()
+        self.mask.write(self._mask_path)
         self._write_sfh_input()
-        subprocess.call("./sfh < %s" % self._sfh_config_path, shell=True)
+        with EnterStarFishDirectory():
+            subprocess.call("./sfh < %s" % self._sfh_config_path, shell=True)
 
     def _write_sfh_input(self):
         """Write the SFH input file."""
@@ -66,7 +70,7 @@ class SFH(object):
 
         # Filenames
         lines.append(self.data_root)  # datpre
-        lines.append(self.cmd_path)  # cmdfile
+        lines.append(self._cmd_path)  # cmdfile
         lines.append(self.mask.mask_path)  # maskfile
         lines.append(self._hold_path)  # hold file (needs to be created)
         lines.append(self._outfile_path)  # output
@@ -83,17 +87,14 @@ class SFH(object):
         lines.append(str(self.synth.dpix))
 
         # Parameters for each CMD
-        # TODO likely want a better accessor here for Synth's CMDs
         for cmd in self.synth._cmds:
-            lines.append(cmd['suffix'])
-            lines.append("%.2f" % min(cmd['x_span']))
-            lines.append("%.2f" % max(cmd['x_span']))
-            lines.append("%.2f" % min(cmd['y_span']))
-            lines.append("%.2f" % max(cmd['y_span']))
-            nx = int((max(cmd['x_span']) - min(cmd['x_span']))
-                     / self.synth.dpix)
-            ny = int((max(cmd['y_span']) - min(cmd['y_span']))
-                     / self.synth.dpix)
+            lines.append(cmd.suffix)
+            lines.append("%.2f" % min(cmd.x_span))
+            lines.append("%.2f" % max(cmd.x_span))
+            lines.append("%.2f" % min(cmd.y_span))
+            lines.append("%.2f" % max(cmd.y_span))
+            nx = int((max(cmd.x_span) - min(cmd.x_span)) / self.synth.dpix)
+            ny = int((max(cmd.y_span) - min(cmd.y_span)) / self.synth.dpix)
             nbox = nx * ny
             lines.append(str(nbox))
 
@@ -114,7 +115,7 @@ class SFH(object):
         lines.append("3")  # number of iterations for determining errorbars
 
         txt = "\n".join(lines)
-        with open(self._sfh_config_path, 'w') as f:
+        with open(os.path.join(starfish_dir, self._sfh_config_path), 'w') as f:
             f.write(txt)
 
     def solution_table(self, avgmass=1.628):
@@ -129,6 +130,7 @@ class SFH(object):
             Average mass of the stellar population; given the IMF. For a
             Salpeter IMF this is 1.628.
         """
+        # TODO refactor out to its own class?
         # read in time interval table (produced by lockfile)
         dt = self.synth.lockfile.group_dt()
 
@@ -167,13 +169,19 @@ class SFH(object):
 
 class Mask(object):
     """Create a mask file for regular CMD gridding."""
-    def __init__(self, mask_path):
+    def __init__(self, color_planes, dpix):
         super(Mask, self).__init__()
-        self.mask_path = mask_path
+        self.mask_path = None
         self._cmds = []  # Masks for each CMD
         self._current_cmd_index = 1
+        for plane in color_planes:
+            self._init_cmd(plane.x_span, plane.y_span, dpix)
 
-    def init_cmd(self, xspan, yspan, dpix):
+    @property
+    def full_mask_path(self):
+        return os.path.join(starfish_dir, self.mask_path)
+
+    def _init_cmd(self, xspan, yspan, dpix):
         """Add a CMD to mask.
 
         CMDs must be added in the same order as specified for the `synth`
@@ -183,7 +191,6 @@ class Mask(object):
 
         Parameters
         ----------
-
         xspan : tuple
             Tuple of min and max x-axis coordinates.
         yspan : tuple
@@ -210,17 +217,20 @@ class Mask(object):
         self._cmds.append(msk)
         self._current_cmd_index += 1
 
-    def write(self):
+    def write(self, mask_path):
         """Write the mask file."""
-        dirname = os.path.dirname(self.mask_path)
+        self.mask_path = mask_path
+
+        dirname = os.path.dirname(self.full_mask_path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        if os.path.exists(self.mask_path):
-            os.remove(self.mask_path)
         mskdata = np.concatenate(tuple(self._cmds))
         t = Table(mskdata)
-        t.write(self.mask_path, format="ascii.fixed_width_no_header",
-                delimiter=' ', bookend=False, delimiter_pad=None,
+        t.write(self.full_mask_path,
+                format="ascii.fixed_width_no_header",
+                delimiter=' ',
+                bookend=False,
+                delimiter_pad=None,
                 include_names=['icmd', 'ibox', 'maskflag'],
                 formats={"icmd": "%i", "ibox": "%i", "maskflag": "%i"})
 

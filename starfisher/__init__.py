@@ -6,4 +6,6 @@ from starfisher.synth import ColorPlane  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
 from starfisher.crowd import MockNullCrowdingTable  # NOQA
 from starfisher.crowd import ExtantCrowdingTable  # NOQA
+from starfisher.sfh import Mask  # NOQA
+from starfisher.sfh import SFH  # NOQA
 from starfisher.plots import plot_synth_hess  # NOQA
