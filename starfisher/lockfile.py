@@ -83,6 +83,12 @@ class BaseLockfile(object):
             self._index['dt'][idx] = dt  # years
             self._index['mean_group_age'][idx] = self._index['age'][idx]
             self._index['mean_group_z'][idx] = self._index['Z'][idx]
+            poly = LockPolygon()
+            poly.add_poly_for_range(self._index['age'][idx] - 0.02,
+                                    self._index['age'][idx] + 0.02,
+                                    self._index['Z'][idx] - 0.02,
+                                    self._index['Z'][idx] + 0.02)
+            self._polygons[self._current_new_group_index] = poly
             self._current_new_group_index += 1
 
     def _estimate_age_grid(self):
