@@ -121,6 +121,14 @@ class ColorPlane(object):
         msk['y'] = y.reshape((npix,), order='C')
         return msk
 
+    def mask_region(self, xspan, yspan):
+        """Mask a region of the CMD."""
+        s = np.where((self._msk['x'] >= min(xspan)) &
+                     (self._msk['x'] <= max(xspan)) &
+                     (self._msk['y'] >= min(yspan)) &
+                     (self._msk['y'] <= max(yspan)))[0]
+        self._msk['maskflag'][s] = 1
+
     def plot_mask(self, ax, flipx=False, flipy=False, imshow_args=None):
         mask_image = self._msk['maskflag'].reshape((self.ny, self.nx),
                                                    order='C')
