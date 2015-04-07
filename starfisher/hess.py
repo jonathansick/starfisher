@@ -66,7 +66,7 @@ def compute_cmd_extent(xspan, yspan, dpix, flipx=False, flipy=False):
     return extent, origin
 
 
-def read_hess(path, xspan, yspan, dpix, flipx=False, flipy=False):
+def read_hess(path, *args, **kwargs):
     """Read the Hess diagrams produced by StarFISH and convert them into
     plot-ready numpy arrays.
 
@@ -88,7 +88,30 @@ def read_hess(path, xspan, yspan, dpix, flipx=False, flipy=False):
         Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
     """
     indata = np.loadtxt(path)
-    hess = reshape_pixarray(indata, xspan, yspan, dpix)
+    return format_hess_array(indata, *args, **kwargs)
+
+
+def format_hess_array(array, xspan, yspan, dpix, flipx=False, flipy=False):
+    """Convert a 1D ndarray into a 2D Hess diagram for plotting.
+
+    Parameters
+    ----------
+    array : ndarray
+        Array structure to reshape into a 2D Hess diagram.
+    xspan : tuple
+        Tuple of ``(x_min, x_max)`` extent of the x-axis, in units of
+        magnitudes.
+    yspan : tuple
+        Tuple of ``(y_min, y_max)`` extent of the y-axis, in units of
+        magnitudes.
+    dpix : float
+        Size of each CMD pixel (``dpix`` by ``dpix`` in area) in mags.
+    flipx : bool
+        Reverse orientation of x-axis if ``True``.
+    flipy : bool
+        Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
+    """
+    hess = reshape_pixarray(array, xspan, yspan, dpix)
     extent, origin = compute_cmd_extent(xspan, yspan, dpix,
                                         flipx=flipx, flipy=flipy)
     return hess, extent, origin

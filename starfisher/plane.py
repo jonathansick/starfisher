@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib as mpl
 from astropy.table import Table
 
+from starfisher.hess import format_hess_array
 from starfisher.pathutils import starfish_dir
 
 
@@ -116,7 +117,7 @@ class ColorPlane(object):
         # Produce a coordinate grid
         xgrid = np.linspace(min(self.x_span), max(self.x_span), self.nx)
         ygrid = np.linspace(min(self.y_span), max(self.y_span), self.ny)
-        x, y = np.meshgrid(xgrid, ygrid, indexing='xy')  # FIXME xy or ij?
+        x, y = np.meshgrid(xgrid, ygrid, indexing='xy')
         msk['x'] = x.reshape((npix,), order='C')
         msk['y'] = y.reshape((npix,), order='C')
         return msk
@@ -129,24 +130,15 @@ class ColorPlane(object):
                      (self._msk['y'] <= max(yspan)))[0]
         self._msk['maskflag'][s] = 1
 
-    def plot_mask(self, ax, flipx=False, flipy=False, imshow_args=None):
-        mask_image = self._msk['maskflag'].reshape((self.ny, self.nx),
-                                                   order='C')
+    def plot_mask(self, ax, imshow_args=None):
+        if self.is_cmd:
+            flipy = True
+        else:
+            flipy = False
 
-        # extent format is (left, right, bottom, top)
-        if flipx:
-            extent = [max(self.x_span), min(self.x_span)]
-        else:
-            extent = [min(self.x_span), max(self.x_span)]
-        if flipy:
-            extent.extend([max(self.y_span), min(self.y_span)])
-        else:
-            extent.extend([min(self.y_span), max(self.y_span)])
-        if flipy:
-            origin = 'lower'
-        else:
-            origin = 'upper'
-
+        mask_image, extent, origin = format_hess_array(
+            np.array(self._msk['maskflag']),
+            self.x_span, self.y_span, self.dpix, flipy=flipy)
         _args = dict(cmap=mpl.cm.gray_r, norm=None,
                      aspect='auto',
                      interpolation='none',
