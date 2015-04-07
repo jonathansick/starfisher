@@ -10,10 +10,6 @@ import os
 
 import numpy as np
 import matplotlib as mpl
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-import matplotlib.gridspec as gridspec
-
 from astropy.table import Table
 
 from starfisher.pathutils import starfish_dir
@@ -97,11 +93,17 @@ class ColorPlane(object):
         lines.append(self.suffix)
         return lines
 
+    @property
+    def nx(self):
+        return int(np.ceil((max(self.x_span) - min(self.x_span)) / self.dpix))
+
+    @property
+    def ny(self):
+        return int(np.ceil((max(self.y_span) - min(self.y_span)) / self.dpix))
+
     def _init_mask(self):
         """Create an empty color plane mask."""
-        nx = int(np.ceil((max(self.x_span) - min(self.x_span)) / self.dpix))
-        ny = int(np.ceil((max(self.y_span) - min(self.y_span)) / self.dpix))
-        npix = nx * ny
+        npix = self.nx * self.ny
 
         dt = [("icmd", np.int), ("ibox", np.int), ("maskflag", np.int),
               ("x", np.float), ("y", np.float)]
@@ -112,12 +114,39 @@ class ColorPlane(object):
         msk['maskflag'][:] = 0
 
         # Produce a coordinate grid
-        xgrid = np.linspace(min(self.x_span), max(self.x_span), nx)
-        ygrid = np.linspace(min(self.y_span), max(self.y_span), ny)
+        xgrid = np.linspace(min(self.x_span), max(self.x_span), self.nx)
+        ygrid = np.linspace(min(self.y_span), max(self.y_span), self.ny)
         x, y = np.meshgrid(xgrid, ygrid, indexing='xy')  # FIXME xy or ij?
         msk['x'] = x.reshape((npix,), order='C')
         msk['y'] = y.reshape((npix,), order='C')
         return msk
+
+    def plot_mask(self, ax, flipx=False, flipy=False, imshow_args=None):
+        mask_image = self._msk['maskflag'].reshape((self.ny, self.nx),
+                                                   order='C')
+
+        # extent format is (left, right, bottom, top)
+        if flipx:
+            extent = [max(self.x_span), min(self.x_span)]
+        else:
+            extent = [min(self.x_span), max(self.x_span)]
+        if flipy:
+            extent.extend([max(self.y_span), min(self.y_span)])
+        else:
+            extent.extend([min(self.y_span), max(self.y_span)])
+        if flipy:
+            origin = 'lower'
+        else:
+            origin = 'upper'
+
+        _args = dict(cmap=mpl.cm.gray_r, norm=None,
+                     aspect='auto',
+                     interpolation='none',
+                     extent=extent, origin=origin,
+                     alpha=None, vmin=None, vmax=None)
+        if imshow_args is not None:
+            _args.update(imshow_args)
+        ax.imshow(mask_image, **_args)
 
 
 class Mask(object):
@@ -151,52 +180,3 @@ class Mask(object):
                 delimiter_pad=None,
                 include_names=['icmd', 'ibox', 'maskflag'],
                 formats={"icmd": "%i", "ibox": "%i", "maskflag": "%i"})
-
-    def plot_cmd_mask(self, index, output_path, xspan, yspan, dpix,
-                      xlabel, ylabel, format="png", dpi=300,
-                      figsize=(4, 4), flipx=False, flipy=False, aspect='auto'):
-        """Plot a CMD mask.
-
-        .. todo:: Refactor internals of this method and
-           :meth:`synth._plot_hess`.
-        """
-        nx = int((max(xspan) - min(xspan)) / dpix)
-        ny = int((max(yspan) - min(yspan)) / dpix)
-        # print nx, ny
-        mask_image = self._cmds[index]['maskflag'].reshape((ny, nx), order='C')
-        # mask_image = self._cmds[index]['y'].reshape((ny, nx), order='C')
-
-        # extent format is (left, right, bottom, top)
-        if flipx:
-            extent = [max(xspan), min(xspan)]
-        else:
-            extent = [min(xspan), max(xspan)]
-        if flipy:
-            extent.extend([max(yspan), min(yspan)])
-        else:
-            extent.extend([min(yspan), max(yspan)])
-        if flipy:
-            origin = 'lower'
-        else:
-            origin = 'upper'
-
-        fig = Figure(figsize=(4., 4.))
-        canvas = FigureCanvas(fig)
-        gs = gridspec.GridSpec(1, 1,
-                               left=0.15, right=0.95, bottom=0.15, top=0.95,
-                               wspace=None, hspace=None,
-                               width_ratios=None, height_ratios=None)
-        ax = fig.add_subplot(gs[0])
-        ax.imshow(mask_image, cmap=mpl.cm.gray_r, norm=None,
-                  aspect=aspect,
-                  interpolation='none',
-                  extent=extent, origin=origin,
-                  alpha=None, vmin=None, vmax=None)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
-
-        plot_dir = os.path.dirname(output_path)
-        if plot_dir is not "" and not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
-        canvas.print_figure(output_path + "." + format, format=format, dpi=dpi)
