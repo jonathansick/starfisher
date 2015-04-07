@@ -51,8 +51,6 @@ class Synth(object):
     old_extinction : :class:`ExtinctionDistribution`
         An :class:`ExtinctionDistribution` instance for old stars (older
         than log(age) = 7.0 by default).
-    dpix : float
-        Size of CMD pixels (in magnitudes).
     nstars : int
         Number of stars in include in artificial population per isochone.
     verb : int
@@ -78,7 +76,7 @@ class Synth(object):
     """
     def __init__(self, synth_dir, library_builder, lockfile, crowdfile,
                  rel_extinction, young_extinction=None, old_extinction=None,
-                 dpix=0.05, nstars=1000000, verb=3, interp_err=True,
+                 nstars=1000000, verb=3, interp_err=True,
                  seed=256, mass_span=(0.5, 100.), fbinary=0.5,
                  planes=None):
         super(Synth, self).__init__()
@@ -88,7 +86,6 @@ class Synth(object):
         self.rel_extinction = rel_extinction
         self.young_extinction = young_extinction
         self.old_extinction = old_extinction
-        self.dpix = dpix
         self.nstars = nstars
         self.verb = verb
         self.interp_err = interp_err
@@ -105,6 +102,10 @@ class Synth(object):
 
         if not os.path.exists(self.full_synth_dir):
             os.makedirs(self.full_synth_dir)
+
+    @property
+    def dpix(self):
+        return self._cmds[0].dpix
 
     @property
     def lock_path(self):
@@ -365,77 +366,3 @@ class ExtinctionDistribution(object):
 
         t = Table([self._extinction_array], names=['A'])
         t.write(full_path, format='ascii.no_header', delimiter=' ')
-
-
-class ColorPlane(object):
-    """Define a CMD or color-color plane for synth to build.
-
-    Parameters
-    ----------
-    x_mag : int or tuple
-        Indices (0-based) of bands to form the x-axis. If `x_mag` is a
-        int, then the x-axis is that magnitude. If `x_mag` is a
-        length-2 tuple, then the x-axis is the difference (colour) of
-        those two magnitudes.
-    y_mag : int or tuple
-        Equivalent to `x_mag`, but defines the y-axis.
-    x_span : tuple (length-2)
-        Tuple of the minimum and maximum values along the x-axis.
-    y_span : tuple (length-2)
-        Tuple of the minimum and maximum values along the y-axis.
-    y_crowding_max : float
-        Maximum value along the y-axis to use in the crowding table.
-    suffix : str
-        Label for this CMD. E.g., if this CMD is B-V, then the suffix
-        should be `.bv`.
-    x_label : str
-        Optional label for x-axis of this CMD. Used by `starfisher`'s
-        plotting methods to properly label axes. Can use matplotlib's
-        latex formatting.
-    y_label : str
-        Optional label for y-axis of this CMD. Used by `starfisher`'s
-        plotting methods to properly label axes. Can use matplotlib's
-        latex formatting.
-    """
-    def __init__(self, x_mag, y_mag, x_span, y_span, y_crowding_max,
-                 suffix=None, x_label="x", y_label="y"):
-        super(ColorPlane, self).__init__()
-        if isinstance(y_mag, int):
-            self._is_cmd = True
-        else:
-            self._is_cmd = False
-        if not isinstance(x_mag, int):
-            x_str = "-".join([str(i + 1) for i in x_mag])
-        else:
-            x_str = str(x_mag + 1)
-        if not isinstance(y_mag, int):
-            y_str = "-".join([str(i + 1) for i in y_mag])
-        else:
-            y_str = str(y_mag + 1)
-        if suffix is None:
-            suffix = "".join((x_str, y_str)).replace('-', '')
-        self.suffix = suffix
-        self.x_str = x_str
-        self.y_str = y_str
-        self.x_span = x_span
-        self.y_span = y_span
-        self.y_crowding_max = y_crowding_max
-        self.x_label = x_label
-        self.y_label = y_label
-
-    @property
-    def is_cmd(self):
-        return self._is_cmd
-
-    @property
-    def synth_config(self):
-        lines = []
-        lines.append(self.x_str)
-        lines.append(self.y_str)
-        lines.append("%.2f" % min(self.x_span))
-        lines.append("%.2f" % max(self.x_span))
-        lines.append("%.2f" % min(self.y_span))
-        lines.append("%.2f" % self.y_crowding_max)
-        lines.append("%.2f" % max(self.y_span))
-        lines.append(self.suffix)
-        return lines
