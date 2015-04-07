@@ -132,26 +132,26 @@ class ChiTriptykPlot(object):
 
     def plot_mod_in_ax(self, ax):
         """Plot the model Hess diagram in the axis."""
-        ax.imshow(self.mod_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+        ax.imshow(np.log10(self.mod_hess),
+                  cmap=mpl.cm.gray_r, extent=self.extent,
                   origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
     def plot_obs_in_ax(self, ax):
         """Plot the observed Hess diagram in the axis."""
-        ax.imshow(self.obs_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+        ax.imshow(np.log10(self.obs_hess), cmap=mpl.cm.gray_r,
+                  extent=self.extent,
                   origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
     def plot_chi_in_ax(self, ax):
         """Plot the chi Hess diagram in the axis."""
-        ax.imshow(self.chi_hess, cmap=mpl.cm.gray_r, extent=self.extent,
+        ax.imshow(np.log10(self.chi_hess), cmap=mpl.cm.gray_r,
+                  extent=self.extent,
                   origin=self.origin, aspect='auto', interpolation='none')
         return ax
 
-    def plot_triptyke(self, plotpath, format="pdf"):
-        """Make a plot triptype and save to disk."""
-        fig = Figure(figsize=(6.5, 3.5))
-        canvas = FigureCanvas(fig)
+    def setup_axes(self, fig):
         gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
                                bottom=0.15, top=0.95,
                                wspace=None, hspace=None,
@@ -159,10 +159,6 @@ class ChiTriptykPlot(object):
         ax_obs = fig.add_subplot(gs[0])
         ax_mod = fig.add_subplot(gs[1])
         ax_chi = fig.add_subplot(gs[2])
-        self.plot_obs_in_ax(ax_obs)
-        self.plot_mod_in_ax(ax_mod)
-        self.plot_chi_in_ax(ax_chi)
-
         for ax in [ax_obs, ax_mod, ax_chi]:
             ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%i"))
             ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(1.))
@@ -174,5 +170,15 @@ class ChiTriptykPlot(object):
             tl.set_visible(False)
         for tl in ax_chi.get_ymajorticklabels():
             tl.set_visible(False)
-        gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
+        return ax_obs, ax_mod, ax_chi
+
+    def plot_triptyke(self, plotpath, format="pdf"):
+        """Make a plot triptype and save to disk."""
+        fig = Figure(figsize=(6.5, 3.5))
+        canvas = FigureCanvas(fig)
+        ax_obs, ax_mod, ax_chi = self.setup_axes(fig)
+        self.plot_obs_in_ax(ax_obs)
+        self.plot_mod_in_ax(ax_mod)
+        self.plot_chi_in_ax(ax_chi)
+        # gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plotpath + "." + format, format=format, dpi=300)
