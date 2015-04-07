@@ -13,6 +13,57 @@ import matplotlib.gridspec as gridspec
 from starfisher.hess import read_chi
 
 
+class LinearSFHCirclePlot(object):
+    """Plot SFH amplitudes as circular areas in a linear age vs metallicity
+
+    Parameters
+    ----------
+    sfh_table : :class:`astropy.table.Table` instance
+        The SFH solution table generated via :meth:`sfh.SFH.solution_table`.
+        This is an Astropy :class:`Table` instance.
+    """
+    def __init__(self, sfh_table):
+        super(LinearSFHCirclePlot, self).__init__()
+        self._table = sfh_table
+
+    @staticmethod
+    def z_tick_formatter():
+        """Formatter for metallicity axis."""
+        return mpl.ticker.FormatStrFormatter("%.2f")
+
+    @staticmethod
+    def age_tick_formatter():
+        """Formatter for log(age) axis."""
+        return mpl.ticker.FormatStrFormatter("%4.1f")
+
+    def plot_in_ax(self, ax, max_area=200.):
+        """Plot the SFH in the given axes.
+
+        Parameters
+        ----------
+        ax : matplotlib `Axes` instance
+            The axes to plot into.
+        max_area : float
+            Area in square-points of the largest circle, corresponding
+            to the highest star formation rate component of the CMD.
+            Tweak this value to make a plot that neither oversaturates,
+            nor produces points too small to see.
+        """
+        scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
+        ZZsol = np.log10(self._table['Z'] / 0.019)
+        ax.scatter(10. ** (self._table['log(age)'] - 9.), ZZsol,
+                   s=scaled_area,
+                   c='k', marker='o', linewidths=0.)
+        ax.set_xlabel(r"$A$ (Gyr)")
+        ax.set_ylabel(r"$\log(Z/Z_\odot)$")
+        ax.xaxis.set_major_formatter(self.age_tick_formatter())
+        ax.yaxis.set_major_formatter(self.z_tick_formatter())
+        ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(base=0.5))
+        ax.set_ylim(-2.0, 0.5)
+        ax.set_xlim(0., 14.)
+        return ax
+
+
 class SFHCirclePlot(object):
     """Plot SFH amplitudes as circular areas in an age vs metallicity plot.
 
@@ -136,6 +187,7 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
+        print a
         ax.imshow(np.log10(self.mod_hess), **a)
         return ax
 
@@ -145,6 +197,7 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
+        print a
         ax.imshow(np.log10(self.obs_hess), **a)
         return ax
 
@@ -154,6 +207,7 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
+        print a
         ax.imshow(np.log10(self.chi_hess), **a)
         return ax
 
