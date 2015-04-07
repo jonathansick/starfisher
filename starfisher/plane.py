@@ -115,9 +115,14 @@ class ColorPlane(object):
         msk['maskflag'][:] = 0
 
         # Produce a coordinate grid
-        xgrid = np.linspace(min(self.x_span), max(self.x_span), self.nx)
-        ygrid = np.linspace(min(self.y_span), max(self.y_span), self.ny)
+        # FIXME need to 'invert' these coordinates when reshaped into 2D
+        xgrid = np.linspace(self.x_span[0], self.x_span[-1], self.nx)
+        ygrid = np.linspace(self.y_span[0], self.y_span[-1], self.ny)
         x, y = np.meshgrid(xgrid, ygrid, indexing='xy')
+        y = np.flipud(y)
+        print "nx", self.nx
+        print "ny", self.ny
+        print "x.shape", x.shape
         msk['x'] = x.reshape((npix,), order='C')
         msk['y'] = y.reshape((npix,), order='C')
         return msk
@@ -146,6 +151,7 @@ class ColorPlane(object):
                      alpha=None, vmin=None, vmax=None)
         if imshow_args is not None:
             _args.update(imshow_args)
+        print _args
         ax.imshow(mask_image, **_args)
 
 
@@ -159,6 +165,7 @@ class Mask(object):
         for i, plane in enumerate(color_planes):
             msk = plane._msk
             msk['icmd'][:] = i + 1
+            self._cmds.append(msk)
 
     @property
     def full_mask_path(self):
