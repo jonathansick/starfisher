@@ -107,7 +107,7 @@ class SFH(object):
         lines.append("0")  # uniform grid
         lines.append("3")  # verbosity
         lines.append("1000.00")  # lambda; initial simplex size
-        lines.append("68.0")  # error bars are at 1 sigma confidence level
+        lines.append("0.68")  # error bars are at 1 sigma confidence level
         lines.append("1.000")  # threshold delta-chi**2
         lines.append("10.00")  # required parameter tolerance
         lines.append("0.0000001")  # required fit_stat tolerance
