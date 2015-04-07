@@ -47,6 +47,14 @@ class SFH(object):
         self._plg_path = os.path.join(self.fit_dir, "plg.log")
         self._chi_path = os.path.join(self.fit_dir, "chi.txt")
 
+    @property
+    def outfile_path(self):
+        return self._outfile_path
+
+    @property
+    def full_outfile_path(self):
+        return os.path.join(starfish_dir, self.outfile_path)
+
     def run_sfh(self):
         """Run the StarFISH `sfh` software."""
         self.synth.lockfile.write_cmdfile(self._cmd_path)
@@ -127,16 +135,18 @@ class SFH(object):
         """
         # TODO refactor out to its own class?
         # read in time interval table (produced by lockfile)
-        dt = self.synth.lockfile.group_dt()
+        dt = self.synth.lockfile.group_dt
 
         # read sfh output
-        t = Table.read(self._outfile_path,
+        t = Table.read(self.full_outfile_path,
                        format="ascii.no_header",
                        names=['Z', 'log(age)',
                               'amp_nstars', 'amp_nstars_n', 'amp_nstars_p'])
 
         # Open a photometry file to count stars
-        dataset_path = self.data_root + self.synth._cmds[0]['suffix']
+        dataset_path = os.path.join(
+            starfish_dir,
+            self.data_root + self.synth._cmds[0].suffix)
         _catalog = np.loadtxt(dataset_path)
         nstars = _catalog.shape[0]
 
