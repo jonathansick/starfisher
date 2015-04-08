@@ -19,26 +19,9 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
         flipy = True
     else:
         flipy = False
-
     hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span, dpix,
                                      flipy=flipy)
-    hess = np.log10(hess)
-    hess = np.ma.masked_invalid(hess, copy=True)
-
-    _imshow = dict(cmap=mpl.cm.gray_r,
-                   norm=None,
-                   aspect='auto',
-                   interpolation='none',
-                   extent=extent,
-                   origin=origin,
-                   alpha=None,
-                   vmin=None,
-                   vmax=None)
-    if imshow_args is not None:
-        _imshow.update(imshow_args)
-    ax.imshow(hess, **_imshow)
-    ax.set_xlabel(cmd.x_label)
-    ax.set_ylabel(cmd.y_label)
+    plot_hess(ax, hess, cmd, origin, imshow_args=imshow_args)
 
     if log_age is not None:
         txt_args = dict(ha='left', va='baseline',
@@ -61,6 +44,25 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
         ZZsol = np.log10(z / 0.019)
         z_str = r"$Z=%.4f$; $\log(Z/Z_\odot)=%.2f$" % (z, ZZsol)
         ax.text(z_txt_coord[0], z_txt_coord[-1], z_str, **txt_args)
+
+
+def plot_hess(ax, hess, cmd, origin, imshow_args=None):
+    hess = np.log10(hess)
+    hess = np.ma.masked_invalid(hess, copy=True)
+    _imshow = dict(cmap=mpl.cm.gray_r,
+                   norm=None,
+                   aspect='auto',
+                   interpolation='none',
+                   extent=cmd.extent,
+                   origin=origin,
+                   alpha=None,
+                   vmin=None,
+                   vmax=None)
+    if imshow_args is not None:
+        _imshow.update(imshow_args)
+    ax.imshow(hess, **_imshow)
+    ax.set_xlabel(cmd.x_label)
+    ax.set_ylabel(cmd.y_label)
 
 
 def plot_isochrone_logage_logzsol(ax, library, **args):
