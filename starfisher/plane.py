@@ -113,6 +113,17 @@ class ColorPlane(object):
             return [self.x_span[0], self.x_span[-1],
                     self.y_span[0], self.y_span[-1]]
 
+    @property
+    def xlim(self):
+        return self.x_span
+
+    @property
+    def ylim(self):
+        if self.is_cmd:
+            return (self.y_span[-1], self.y_span[0])
+        else:
+            return (self.y_span[0], self.y_span[-1])
+
     def _init_mask(self):
         """Create an empty color plane mask."""
         npix = self.nx * self.ny
