@@ -1,5 +1,6 @@
 from starfisher.isolibrary import LibraryBuilder  # NOQA
 from starfisher.synth import Synth  # NOQA
+from starfisher.simhess import SimHess  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
 from starfisher.plane import ColorPlane  # NOQA
