@@ -250,6 +250,9 @@ class BaseLockfile(object):
             sels = []
             split_polygons = {}
             for g in groups:
+                if g == 0:
+                    # these are unclassified groups
+                    continue
                 g = int(g)
                 sels.append(np.where(self._index['group'] == g)[0])
                 split_polygons[g] = self._polygons[g]
