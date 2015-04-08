@@ -102,6 +102,13 @@ class ColorPlane(object):
     def ny(self):
         return int(np.ceil((max(self.y_span) - min(self.y_span)) / self.dpix))
 
+    @property
+    def extent(self):
+        """The matplotlib-compatible extent description for this color plane.
+        """
+        return [self.x_span[0], self.x_span[-1],
+                self.y_span[0], self.y_span[-1]]
+
     def _init_mask(self):
         """Create an empty color plane mask."""
         npix = self.nx * self.ny
