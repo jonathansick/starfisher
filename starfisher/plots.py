@@ -11,7 +11,7 @@ from matplotlib.collections import PolyCollection
 from starfisher.hess import read_hess
 
 
-def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
+def plot_synth_hess(ax, synthfile, cmd, imshow_args=None,
                     log_age=None, z=None,
                     z_txt_coord=(0.1, 0.8), z_txt_args=None,
                     age_txt_coord=(0.1, 0.9), age_txt_args=None):
@@ -19,7 +19,8 @@ def plot_synth_hess(synthfile, ax, cmd, dpix, imshow_args=None,
         flipy = True
     else:
         flipy = False
-    hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span, dpix,
+    hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span,
+                                     cmd.dpix,
                                      flipy=flipy)
     plot_hess(ax, hess, cmd, origin, imshow_args=imshow_args)
 

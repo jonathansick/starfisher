@@ -300,7 +300,7 @@ class Synth(object):
                                wspace=None, hspace=None,
                                width_ratios=None, height_ratios=None)
         ax = fig.add_subplot(gs[0])
-        plot_synth_hess(synth_path, ax, cmd, self.dpix,
+        plot_synth_hess(ax, synth_path, cmd,
                         log_age=log_age, z=z)
         gs.tight_layout(fig, pad=1.08, h_pad=None, w_pad=None, rect=None)
         canvas.print_figure(plot_path + "." + format, format=format, dpi=dpi)
