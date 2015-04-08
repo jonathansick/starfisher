@@ -38,6 +38,15 @@ class SimHess(object):
         # build hess diagram
         self._h = self._build_hess()
 
+    @classmethod
+    def from_sfh_solution(cls, sfh, colorplane):
+        """Construct a :class:`SimHess` from a SFH fitted star formation
+        history.
+        """
+        t = sfh.solution_table()
+        amps = t['sfr']
+        return cls(sfh.synth, colorplane, amps)
+
     @property
     def hess(self):
         """The Hess diagram as numpy array."""
