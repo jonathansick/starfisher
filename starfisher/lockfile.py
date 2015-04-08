@@ -5,7 +5,6 @@ Data structures for lockfiles.
 """
 
 import os
-import glob
 import logging
 import abc
 
@@ -46,15 +45,15 @@ class BaseLockfile(object):
     @property
     def active_groups(self):
         """Returns a list of groups that have CMD planes prepared by synth."""
-        active_groups = []
-        names = np.unique(self._index['name'])
-        for name in names:
-            paths = glob.glob(os.path.join(starfish_dir, name + "*"))
-            if len(paths) > 0:
-                active_groups.append(name)
-            else:
-                logging.warning("Lockfile.active_groups: can't find %s" % name)
-        return active_groups
+        names = []
+        groups = np.unique(self._index['group'])
+        groups.sort()
+        for g in groups:
+            if g == 0:
+                continue
+            idx = np.where(self._index['group'] == g)[0][0]
+            names.append(self._index['name'][idx])
+        return names
 
     def mean_age_for_group(self, name):
         i = np.where(self._index['name'] == name)[0][0]
@@ -157,6 +156,8 @@ class BaseLockfile(object):
         groups = np.unique(self._index['group'])
         groups.sort()
         for g in groups:
+            if g == 0:
+                continue
             for i in np.where(self._index['group'] == g)[0]:
                 sel.append(i)
         return np.array(sel, dtype=int)
