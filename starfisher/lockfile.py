@@ -55,6 +55,20 @@ class BaseLockfile(object):
             names.append(self._index['name'][idx])
         return names
 
+    @property
+    def group_logages(self):
+        logages = []
+        for name in self.active_groups:
+            logages.append(self.mean_age_for_group(name))
+        return np.array(logages)
+
+    @property
+    def group_metallicities(self):
+        zs = []
+        for name in self.active_groups:
+            zs.append(self.mean_z_for_group(name))
+        return np.array(zs)
+
     def mean_age_for_group(self, name):
         i = np.where(self._index['name'] == name)[0][0]
         return self._index['mean_group_age'][i]

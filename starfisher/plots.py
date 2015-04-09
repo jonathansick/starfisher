@@ -11,7 +11,7 @@ from matplotlib.collections import PolyCollection
 from starfisher.hess import read_hess
 
 
-def plot_synth_hess(ax, synthfile, cmd, imshow_args=None,
+def plot_synth_hess(ax, synthfile, cmd, log=True, imshow_args=None,
                     log_age=None, z=None,
                     z_txt_coord=(0.1, 0.8), z_txt_args=None,
                     age_txt_coord=(0.1, 0.9), age_txt_args=None):
@@ -22,7 +22,7 @@ def plot_synth_hess(ax, synthfile, cmd, imshow_args=None,
     hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span,
                                      cmd.dpix,
                                      flipy=flipy)
-    plot_hess(ax, hess, cmd, origin, imshow_args=imshow_args)
+    im = plot_hess(ax, hess, cmd, origin, log=log, imshow_args=imshow_args)
 
     if log_age is not None:
         txt_args = dict(ha='left', va='baseline',
@@ -46,9 +46,12 @@ def plot_synth_hess(ax, synthfile, cmd, imshow_args=None,
         z_str = r"$Z=%.4f$; $\log(Z/Z_\odot)=%.2f$" % (z, ZZsol)
         ax.text(z_txt_coord[0], z_txt_coord[-1], z_str, **txt_args)
 
+    return im
 
-def plot_hess(ax, hess, cmd, origin, imshow_args=None):
-    hess = np.log10(hess)
+
+def plot_hess(ax, hess, cmd, origin, log=True, imshow_args=None):
+    if log:
+        hess = np.log10(hess)
     hess = np.ma.masked_invalid(hess, copy=True)
     _imshow = dict(cmap=mpl.cm.gray_r,
                    norm=None,
@@ -61,9 +64,10 @@ def plot_hess(ax, hess, cmd, origin, imshow_args=None):
                    vmax=None)
     if imshow_args is not None:
         _imshow.update(imshow_args)
-    ax.imshow(hess, **_imshow)
+    im = ax.imshow(hess, **_imshow)
     ax.set_xlabel(cmd.x_label)
     ax.set_ylabel(cmd.y_label)
+    return im
 
 
 def plot_isochrone_logage_logzsol(ax, library, **args):

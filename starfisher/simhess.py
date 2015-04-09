@@ -60,13 +60,30 @@ class SimHess(object):
     def extent(self):
         return self._plane.extent
 
+    @property
+    def mean_logage_hess(self):
+        hess_stack = self._build_hess_stack()
+        msk = np.zeros(hess_stack.shape, dtype=np.bool)
+        msk[hess_stack == 0] = True
+        hess_stack = np.ma.array(hess_stack, mask=msk)
+        logages = np.swapaxes(
+            np.atleast_3d(self._synth.lockfile.group_logages),
+            1, 2)
+        ages_stack = logages * np.ma.ones(hess_stack.shape, dtype=np.float)
+        ages_stack.mask = msk
+        return np.ma.average(ages_stack, axis=2, weights=hess_stack)
+
     def _build_hess(self):
         # Co-add synth hess diagrams, weighted by amplitude
+        hess_stack = self._build_hess_stack()
+        return np.sum(hess_stack, axis=2)
+
+    def _build_hess_stack(self):
         synth_hess = self._read_synth_hess()
         hess_stack = np.dstack(synth_hess)
         A = np.swapaxes(np.atleast_3d(self._amps), 1, 2)
         hess_stack = A * hess_stack
-        return np.sum(hess_stack, axis=2)
+        return hess_stack
 
     def _read_synth_hess(self):
         if self._plane.is_cmd:
