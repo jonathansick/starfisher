@@ -31,13 +31,20 @@ class SFH(object):
         should be masked.
     fit_dir : str
         Direcory where input files are stored for the StarFISH run.
+    planes : list
+        List of CMD planes, made by :class:`Synth` to use. By default all
+        of the planes built by :class:`Synth` will be used.
     """
-    def __init__(self, data_root, synth, mask, fit_dir):
+    def __init__(self, data_root, synth, mask, fit_dir, planes=None):
         super(SFH, self).__init__()
         self.data_root = data_root
         self.synth = synth
         self.mask = mask
         self.fit_dir = fit_dir
+        if planes is not None:
+            self._planes = planes
+        else:
+            self._planes = self.synth._cmds
         self._sfh_config_path = os.path.join(self.fit_dir, "sfh.dat")
         self._cmd_path = os.path.join(self.fit_dir, "cmd.txt")
         self._outfile_path = os.path.join(self.fit_dir, "output.dat")
@@ -93,12 +100,13 @@ class SFH(object):
         # number of independent isochrones
         # TODO modified by the holdfile?
         lines.append(str(self.synth.n_active_groups))
-        lines.append(str(self.synth.n_cmd))
+        lines.append(str(len(self._planes)))
+
         lines.append("1")  # binning factor between synth and CMD pixels
         lines.append(str(self.synth.dpix))
 
         # Parameters for each CMD
-        for cmd in self.synth._cmds:
+        for cmd in self._planes:
             lines.append(cmd.suffix)
             lines.append("%.2f" % min(cmd.x_span))
             lines.append("%.2f" % max(cmd.x_span))
