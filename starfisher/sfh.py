@@ -186,3 +186,18 @@ class SFH(object):
         t.add_columns([csfr, csap, csan])
 
         return t
+
+    def plane_index(self, plane):
+        """Index of a color plane in the SFH system.
+
+        Parameters
+        ----------
+        plane : :class:`starfisher.plane.ColorPlane`
+            The `ColorPlane` instance to get the SFH index of.
+
+        Returns
+        -------
+        index : int
+            Index of the color Plane.
+        """
+        return self._planes.index(plane) + 1
