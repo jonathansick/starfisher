@@ -14,6 +14,7 @@ from astropy.table import Table, Column
 
 from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
 from starfisher.hess import read_chi
+from starfisher.plane import Mask
 
 
 class SFH(object):
@@ -27,25 +28,22 @@ class SFH(object):
     synth : :class:`synth.Synth` instance
         The instance of :class:`synth.Synth` used to prepare the synthetic
         CMDs.
-    mask : :class:`sfh.Mask` instance
-        The instance of :class:`sfh.Mask` specifying how each CMD plane
-        should be masked.
     fit_dir : str
         Direcory where input files are stored for the StarFISH run.
     planes : list
         List of CMD planes, made by :class:`Synth` to use. By default all
         of the planes built by :class:`Synth` will be used.
     """
-    def __init__(self, data_root, synth, mask, fit_dir, planes=None):
+    def __init__(self, data_root, synth, fit_dir, planes=None):
         super(SFH, self).__init__()
         self.data_root = data_root
         self.synth = synth
-        self.mask = mask
         self.fit_dir = fit_dir
         if planes is not None:
             self._planes = planes
         else:
             self._planes = self.synth._cmds
+        self.mask = Mask(self._planes)
         self._sfh_config_path = os.path.join(self.fit_dir, "sfh.dat")
         self._cmd_path = os.path.join(self.fit_dir, "cmd.txt")
         self._outfile_path = os.path.join(self.fit_dir, "output.dat")
