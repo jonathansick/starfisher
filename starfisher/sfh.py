@@ -13,6 +13,7 @@ import numpy as np
 from astropy.table import Table, Column
 
 from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
+from starfisher.hess import read_chi
 
 
 class SFH(object):
@@ -201,3 +202,16 @@ class SFH(object):
             Index of the color Plane.
         """
         return self._planes.index(plane) + 1
+
+    def chi_hess(self, plane):
+        """Chi-sq Hess diagram for the given plane.
+
+        Parameters
+        ----------
+        plane : :class:`starfisher.plane.ColorPlane`
+            The `ColorPlane` instance to get the chi-sq Hess diagram of.
+        """
+        data = read_chi(self.full_chi_path, self.plane_index(plane),
+                        plane.x_span, plane.y_span, plane.dpix,
+                        flipx=False, flipy=True)
+        return data
