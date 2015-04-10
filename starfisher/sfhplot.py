@@ -10,8 +10,6 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 
-from starfisher.hess import read_chi
-
 
 class LinearSFHCirclePlot(object):
     """Plot SFH amplitudes as circular areas in a linear age vs metallicity
@@ -144,42 +142,20 @@ class ChiTriptykPlot(object):
 
     Parameters
     ----------
-    chipath : str
-        Path to the 'chi' output file from SFH.
-    icmd : int
-        Index of the CMD. The first CMD has an index of ``1``.
-    xspan : tuple
-        Tuple of ``(x_min, x_max)`` extent of the x-axis, in units of
-        magnitudes.
-    yspan : tuple
-        Tuple of ``(y_min, y_max)`` extent of the y-axis, in units of
-        magnitudes.
-    dpix : float
-        Size of each CMD pixel (``dpix`` by ``dpix`` in area) in mags.
-    flipx : bool
-        Reverse orientation of x-axis if ``True``.
-    flipy : bool
-        Reverse orientation of y-axis if ``True`` (e.g., for CMDs).
+    shf : :class:`starfisher.sfh.SFH`
+        The :class:`SFH` instance with results.
+    plane : :class:`starfisher.plane.ColorPlane`
+        The :class:`ColorPlane` fitted by `sfh` to be plotted.
     """
-    def __init__(self, chipath, icmd, xspan, yspan, dpix, xlabel, ylabel,
-                 flipx=False, flipy=False):
+    def __init__(self, sfh, plane):
         super(ChiTriptykPlot, self).__init__()
-        _ = read_chi(chipath, icmd, xspan, yspan, dpix,
-                     flipx=flipx, flipy=flipy)
+        _ = sfh.read_chi(plane)
         self.mod_hess = _[0]
         self.obs_hess = _[1]
         self.chi_hess = _[2]
         self.extent = _[3]
         self.origin = _[4]
-        self.chipath = chipath
-        self.icmd = icmd
-        self.xspan = xspan
-        self.yspan = yspan
-        self.dpix = dpix
-        self.flipx = flipx
-        self.flipy = flipy
-        self.xlabel = xlabel
-        self.ylabel = ylabel
+        self.plane = plane
 
     def plot_mod_in_ax(self, ax, **args):
         """Plot the model Hess diagram in the axis."""
@@ -187,7 +163,6 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
-        print a
         ax.imshow(np.log10(self.mod_hess), **a)
         return ax
 
@@ -197,7 +172,6 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
-        print a
         ax.imshow(np.log10(self.obs_hess), **a)
         return ax
 
@@ -207,25 +181,27 @@ class ChiTriptykPlot(object):
                  origin=self.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
-        print a
         ax.imshow(np.log10(self.chi_hess), **a)
         return ax
 
-    def setup_axes(self, fig):
-        gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
-                               bottom=0.15, top=0.95,
-                               wspace=None, hspace=None,
-                               width_ratios=None, height_ratios=None)
-        ax_obs = fig.add_subplot(gs[0])
-        ax_mod = fig.add_subplot(gs[1])
-        ax_chi = fig.add_subplot(gs[2])
+    def setup_axes(self, fig, ax_obs=None, ax_mod=None, ax_chi=None,
+                   major_y=1., major_x=0.5):
+        if (ax_obs is None) or (ax_mod is None) or (ax_chi is None):
+            gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
+                                   bottom=0.15, top=0.95,
+                                   wspace=None, hspace=None,
+                                   width_ratios=None, height_ratios=None)
+            ax_obs = fig.add_subplot(gs[0])
+            ax_mod = fig.add_subplot(gs[1])
+            ax_chi = fig.add_subplot(gs[2])
+
         for ax in [ax_obs, ax_mod, ax_chi]:
             ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%i"))
-            ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(1.))
+            ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(major_y))
             ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%.1f"))
-            ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(0.5))
-        ax_mod.set_xlabel(self.xlabel)
-        ax_obs.set_ylabel(self.ylabel)
+            ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(major_x))
+        ax_mod.set_xlabel(self.plane.x_label)
+        ax_obs.set_ylabel(self.plane.y_label)
         for tl in ax_mod.get_ymajorticklabels():
             tl.set_visible(False)
         for tl in ax_chi.get_ymajorticklabels():
