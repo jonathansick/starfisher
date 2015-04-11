@@ -161,7 +161,7 @@ class SFH(object):
         # Open a photometry file to count stars
         dataset_path = os.path.join(
             starfish_dir,
-            self.data_root + self.synth._cmds[0].suffix)
+            self.data_root + self._planes[0].suffix)
         _catalog = np.loadtxt(dataset_path)
         nstars = _catalog.shape[0]
 
