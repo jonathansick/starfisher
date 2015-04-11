@@ -152,3 +152,39 @@ def read_chi(path, icmd, xspan, yspan, dpix, flipx=False, flipy=False):
     extent, origin = compute_cmd_extent(xspan, yspan, dpix,
                                         flipx=flipx, flipy=flipy)
     return mod_hess, obs_hess, chi_hess, extent, origin
+
+
+class StarCatalogHess(object):
+    """Bin star catalog to create a Hess diagram.
+
+    Parameters
+    ----------
+    x : ndarray
+        Star magnitudes/colours for the x-coordinate of the Hess diagram.
+    y : ndarray
+        Star magnitudes/colours for the y-coordinate of the Hess diagram.
+    plane : :class:`starfisher.plane.ColorPlane`
+        The Hess plane's geometry.
+    """
+    def __init__(self, x, y, plane):
+        super(StarCatalogHess, self).__init__()
+        self._plane = plane
+
+        range_ = np.array([self._plane.x_span, self._plane.y_span])
+        self._h, self._xedges, self._yedges = np.histogram2d(
+            x, y, bins=[self._plane.nx, self._plane.ny],
+            range=range_)
+        self._h = np.flipud(self._h.T)
+
+    @property
+    def hess(self):
+        """The Hess diagram as numpy array."""
+        return self._h
+
+    @property
+    def origin(self):
+        return 'lower'
+
+    @property
+    def extent(self):
+        return self._plane.extent
