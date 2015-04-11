@@ -201,7 +201,7 @@ class SFH(object):
         """
         return self._planes.index(plane) + 1
 
-    def chi_hess(self, plane):
+    def read_chi(self, plane):
         """Chi-sq Hess diagram for the given plane.
 
         Parameters
