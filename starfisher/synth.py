@@ -151,7 +151,7 @@ class Synth(object):
         """Add a CMD plane for synthesis."""
         self._cmds.append(cmd)
 
-    def run_synth(self, n_cpu=1, include_unlocked=False):
+    def run_synth(self, n_cpu=1, include_unlocked=False, clean=False):
         """Run the StarFISH `synth` code to create synthetic CMDs.
 
         Parameters
@@ -163,9 +163,13 @@ class Synth(object):
         include_unlocked : bool
             Synthesize isochrones even if they were not explicity inluded in
             a group in the lockfile.
+        clean : bool
+            If ``True`` then existing synth outputs are removed before
+            running ``synth``.
         """
         synth_paths = self._write(n_cpu, include_unlocked)
-        self._clean()
+        if clean:
+            self._clean()
 
         if not os.path.exists(self.lockfile.full_synth_dir):
             os.makedirs(self.lockfile.full_synth_dir)
