@@ -185,7 +185,7 @@ class ChiTriptykPlot(object):
         return ax
 
     def setup_axes(self, fig, ax_obs=None, ax_mod=None, ax_chi=None,
-                   major_y=1., major_x=0.5):
+                   major_y=1., major_x=0.5, major_x_fmt="%.1f"):
         if (ax_obs is None) or (ax_mod is None) or (ax_chi is None):
             gs = gridspec.GridSpec(1, 3, left=0.1, right=0.95,
                                    bottom=0.15, top=0.95,
@@ -198,7 +198,8 @@ class ChiTriptykPlot(object):
         for ax in [ax_obs, ax_mod, ax_chi]:
             ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%i"))
             ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(major_y))
-            ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%.1f"))
+            ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter(
+                major_x_fmt))
             ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(major_x))
         ax_mod.set_xlabel(self.plane.x_label)
         ax_obs.set_ylabel(self.plane.y_label)

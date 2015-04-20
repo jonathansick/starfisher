@@ -67,6 +67,8 @@ def plot_hess(ax, hess, cmd, origin, log=True, imshow_args=None):
     im = ax.imshow(hess, **_imshow)
     ax.set_xlabel(cmd.x_label)
     ax.set_ylabel(cmd.y_label)
+    ax.set_xlim(*cmd.xlim)
+    ax.set_ylim(*cmd.ylim)
     return im
 
 
