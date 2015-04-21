@@ -1,9 +1,9 @@
 from starfisher.isolibrary import LibraryBuilder  # NOQA
 from starfisher.synth import Synth  # NOQA
-from starfisher.hess import SimHess  # NOQA
-from starfisher.hess import StarCatalogHess  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
 from starfisher.lockfile import Lockfile  # NOQA
+from starfisher.plane import SimHess  # NOQA
+from starfisher.plane import StarCatalogHess  # NOQA
 from starfisher.plane import ColorPlane  # NOQA
 from starfisher.plane import Mask  # NOQA
 from starfisher.dust import ExtinctionDistribution  # NOQA

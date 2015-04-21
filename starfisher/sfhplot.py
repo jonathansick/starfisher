@@ -153,14 +153,12 @@ class ChiTriptykPlot(object):
         self.mod_hess = _[0]
         self.obs_hess = _[1]
         self.chi_hess = _[2]
-        self.extent = _[3]
-        self.origin = _[4]
         self.plane = plane
 
     def plot_mod_in_ax(self, ax, **args):
         """Plot the model Hess diagram in the axis."""
-        a = dict(cmap=mpl.cm.gray_r, extent=self.extent,
-                 origin=self.origin, aspect='auto', interpolation='none')
+        a = dict(cmap=mpl.cm.gray_r, extent=self.plane.extent,
+                 origin=self.plane.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
         ax.imshow(np.log10(self.mod_hess), **a)
@@ -168,8 +166,8 @@ class ChiTriptykPlot(object):
 
     def plot_obs_in_ax(self, ax, **args):
         """Plot the observed Hess diagram in the axis."""
-        a = dict(cmap=mpl.cm.gray_r, extent=self.extent,
-                 origin=self.origin, aspect='auto', interpolation='none')
+        a = dict(cmap=mpl.cm.gray_r, extent=self.plane.extent,
+                 origin=self.plane.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
         ax.imshow(np.log10(self.obs_hess), **a)
@@ -177,8 +175,8 @@ class ChiTriptykPlot(object):
 
     def plot_chi_in_ax(self, ax, **args):
         """Plot the chi Hess diagram in the axis."""
-        a = dict(cmap=mpl.cm.gray_r, extent=self.extent,
-                 origin=self.origin, aspect='auto', interpolation='none')
+        a = dict(cmap=mpl.cm.gray_r, extent=self.plane.extent,
+                 origin=self.plane.origin, aspect='auto', interpolation='none')
         if args is not None:
             a.update(args)
         ax.imshow(np.log10(self.chi_hess), **a)

@@ -8,21 +8,14 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.collections import PolyCollection
 
-from starfisher.hess import read_hess
 
-
-def plot_synth_hess(ax, synthfile, cmd, log=True, imshow_args=None,
+def plot_synth_hess(ax, synthfile, plane, log=True, imshow_args=None,
                     log_age=None, z=None,
                     z_txt_coord=(0.1, 0.8), z_txt_args=None,
                     age_txt_coord=(0.1, 0.9), age_txt_args=None):
-    if cmd.is_cmd:
-        flipy = True
-    else:
-        flipy = False
-    hess, extent, origin = read_hess(synthfile, cmd.x_span, cmd.y_span,
-                                     cmd.dpix,
-                                     flipy=flipy)
-    im = plot_hess(ax, hess, cmd, origin, log=log, imshow_args=imshow_args)
+    hess = plane.read_hess(synthfile)
+    im = plot_hess(ax, hess, plane, plane.origin,
+                   log=log, imshow_args=imshow_args)
 
     if log_age is not None:
         txt_args = dict(ha='left', va='baseline',
@@ -49,7 +42,7 @@ def plot_synth_hess(ax, synthfile, cmd, log=True, imshow_args=None,
     return im
 
 
-def plot_hess(ax, hess, cmd, origin, log=True, imshow_args=None):
+def plot_hess(ax, hess, plane, origin, log=True, imshow_args=None):
     if log:
         hess = np.log10(hess)
     hess = np.ma.masked_invalid(hess, copy=True)
@@ -57,7 +50,7 @@ def plot_hess(ax, hess, cmd, origin, log=True, imshow_args=None):
                    norm=None,
                    aspect='auto',
                    interpolation='none',
-                   extent=cmd.extent,
+                   extent=plane.extent,
                    origin=origin,
                    alpha=None,
                    vmin=None,
@@ -65,10 +58,10 @@ def plot_hess(ax, hess, cmd, origin, log=True, imshow_args=None):
     if imshow_args is not None:
         _imshow.update(imshow_args)
     im = ax.imshow(hess, **_imshow)
-    ax.set_xlabel(cmd.x_label)
-    ax.set_ylabel(cmd.y_label)
-    ax.set_xlim(*cmd.xlim)
-    ax.set_ylim(*cmd.ylim)
+    ax.set_xlabel(plane.x_label)
+    ax.set_ylabel(plane.y_label)
+    ax.set_xlim(*plane.xlim)
+    ax.set_ylim(*plane.ylim)
     return im
 
 

@@ -7,12 +7,12 @@ Colour Plane definitions and masks.
 """
 
 import os
+import logging
 
 import numpy as np
 import matplotlib as mpl
 from astropy.table import Table
 
-from starfisher.hess import format_hess_array
 from starfisher.pathutils import starfish_dir
 
 
@@ -49,7 +49,8 @@ class ColorPlane(object):
         Size of CMD pixels (in magnitudes).
     """
     def __init__(self, x_mag, y_mag, x_span, y_span, y_crowding_max,
-                 suffix=None, x_label="x", y_label="y", dpix=0.05):
+                 suffix=None, x_label="x", y_label="y", dpix=0.05,
+                 nx=None, ny=None):
         super(ColorPlane, self).__init__()
         if isinstance(y_mag, int):
             self._is_cmd = True
@@ -74,6 +75,8 @@ class ColorPlane(object):
         self.x_label = x_label
         self.y_label = y_label
         self.dpix = dpix
+        self._nx = nx
+        self._ny = ny
 
         self._msk = self._init_mask()
 
@@ -96,11 +99,19 @@ class ColorPlane(object):
 
     @property
     def nx(self):
-        return int(np.ceil((max(self.x_span) - min(self.x_span)) / self.dpix))
+        if self._nx is None:
+            return int(np.ceil((max(self.x_span) - min(self.x_span))
+                       / self.dpix))
+        else:
+            return self._nx
 
     @property
     def ny(self):
-        return int(np.ceil((max(self.y_span) - min(self.y_span)) / self.dpix))
+        if self._ny is None:
+            return int(np.ceil((max(self.y_span) - min(self.y_span))
+                       / self.dpix))
+        else:
+            return self._ny
 
     @property
     def extent(self):
@@ -112,6 +123,11 @@ class ColorPlane(object):
         else:
             return [self.x_span[0], self.x_span[-1],
                     self.y_span[0], self.y_span[-1]]
+
+    @property
+    def origin(self):
+        """The origin for matplotlib's ``imshow``."""
+        return 'lower'
 
     @property
     def xlim(self):
@@ -154,22 +170,64 @@ class ColorPlane(object):
         self._msk['maskflag'][s] = 1
 
     def plot_mask(self, ax, imshow_args=None):
-        if self.is_cmd:
-            flipy = True
-        else:
-            flipy = False
-
-        mask_image, extent, origin = format_hess_array(
-            np.array(self._msk['maskflag']),
-            self.x_span, self.y_span, self.dpix, flipy=flipy)
+        mask_image = self.format_hess_array(np.array(self._msk['maskflag']))
         _args = dict(cmap=mpl.cm.gray_r, norm=None,
                      aspect='auto',
                      interpolation='none',
-                     extent=extent, origin=origin,
+                     extent=self.extent, origin=self.origin,
                      alpha=None, vmin=None, vmax=None)
         if imshow_args is not None:
             _args.update(imshow_args)
         ax.imshow(mask_image, **_args)
+
+    def reshape_pixarray(self, pixarray):
+        """Reshape a 1D pixel array into a 2D Hess array.
+
+        Parameters
+        ----------
+        pixarray : ndarray
+            A 1D pixel array that can be reshaped into a 2D Hess plane image.
+        """
+        if self.nx * self.ny != pixarray.shape[0]:
+            err_msg = "reshape_pixarray {0} to ({1:d}, {2:d})".format(
+                pixarray.shape, self.nx, self.ny)
+            logging.error(err_msg)
+        hess = pixarray.reshape((self.ny, self.nx), order='C')
+        return hess
+
+    def read_hess(self, path):
+        """Read the Hess diagrams produced by StarFISH and convert them into
+        plot-ready numpy arrays.
+
+        Parameters
+        ----------
+        path : str
+            Path to the StarFISH Hess diagram file.
+        """
+        indata = np.loadtxt(path)
+        return self.reshape_pixarray(indata)
+
+    def read_chi(self, path, icmd):
+        """Read the chi files output by ``sfh``, converting them into numpy
+        arrays.
+
+        Parameters
+        ----------
+        path : str
+            Path to the StarFISH chi output file.
+        icmd : int
+            Index of the CMD. The first CMD has an index of ``1``.
+        """
+        dt = [('icmd', np.int), ('ibox', np.int), ('Nmod', np.float),
+              ('Nobs', np.float), ('dchi', np.float)]
+        indata = np.loadtxt(path, dtype=np.dtype(dt))
+        # Extract rows for just the CMD of interest
+        sel = np.where(indata['icmd'] == icmd)[0]
+        indata = indata[sel]
+        mod_hess = self.reshape_pixarray(indata['Nmod'])
+        obs_hess = self.reshape_pixarray(indata['Nobs'])
+        chi_hess = self.reshape_pixarray(indata['dchi'])
+        return mod_hess, obs_hess, chi_hess
 
 
 class Mask(object):
@@ -204,3 +262,120 @@ class Mask(object):
                 delimiter_pad=None,
                 include_names=['icmd', 'ibox', 'maskflag'],
                 formats={"icmd": "%i", "ibox": "%i", "maskflag": "%i"})
+
+
+class StarCatalogHess(object):
+    """Bin star catalog to create a Hess diagram.
+
+    Parameters
+    ----------
+    x : ndarray
+        Star magnitudes/colours for the x-coordinate of the Hess diagram.
+    y : ndarray
+        Star magnitudes/colours for the y-coordinate of the Hess diagram.
+    plane : :class:`starfisher.plane.ColorPlane`
+        The Hess plane's geometry.
+    """
+    def __init__(self, x, y, plane):
+        super(StarCatalogHess, self).__init__()
+        self._plane = plane
+
+        range_ = np.array([self._plane.x_span, self._plane.y_span])
+        self._h, self._xedges, self._yedges = np.histogram2d(
+            x, y, bins=[self._plane.nx, self._plane.ny],
+            range=range_)
+        self._h = np.flipud(self._h.T)
+
+    @property
+    def hess(self):
+        """The Hess diagram as numpy array."""
+        return self._h
+
+    @property
+    def origin(self):
+        return 'lower'
+
+    @property
+    def extent(self):
+        return self._plane.extent
+
+
+class SimHess(object):
+    """Builds Hess diagrams from synthetic SSP hess diagrams made by `synth`.
+
+    Parameters
+    ----------
+    synth : :class:`starfisher.synth.Synth`
+        A `Synth` instance where simulated Hess diagrams have been pre-built.
+    colorplane : :class:`starfisher.plane.ColorPlane`
+        The `ColorPlane` that will be simulated. This `ColorPlane` must be
+        in `Synth`.
+    amplitudes : ndarray
+        Star formation amplitudes for each isochrone (group).
+    """
+    def __init__(self, synth, colorplane, amplitudes):
+        super(SimHess, self).__init__()
+        self._synth = synth
+        self._plane = colorplane
+        self._amps = amplitudes
+
+        assert self._plane in self._synth._cmds
+        assert len(self._amps) == len(self._synth.lockfile.active_groups)
+
+        # build hess diagram
+        self._h = self._build_hess()
+
+    @classmethod
+    def from_sfh_solution(cls, sfh, colorplane):
+        """Construct a :class:`SimHess` from a SFH fitted star formation
+        history.
+        """
+        t = sfh.solution_table()
+        amps = t['sfr']
+        return cls(sfh.synth, colorplane, amps)
+
+    @property
+    def hess(self):
+        """The Hess diagram as numpy array."""
+        return self._h
+
+    @property
+    def origin(self):
+        return 'lower'
+
+    @property
+    def extent(self):
+        return self._plane.extent
+
+    @property
+    def mean_logage_hess(self):
+        hess_stack = self._build_hess_stack()
+        msk = np.zeros(hess_stack.shape, dtype=np.bool)
+        msk[hess_stack == 0] = True
+        hess_stack = np.ma.array(hess_stack, mask=msk)
+        logages = np.swapaxes(
+            np.atleast_3d(self._synth.lockfile.group_logages),
+            1, 2)
+        ages_stack = logages * np.ma.ones(hess_stack.shape, dtype=np.float)
+        ages_stack.mask = msk
+        return np.ma.average(ages_stack, axis=2, weights=hess_stack)
+
+    def _build_hess(self):
+        # Co-add synth hess diagrams, weighted by amplitude
+        hess_stack = self._build_hess_stack()
+        return np.sum(hess_stack, axis=2)
+
+    def _build_hess_stack(self):
+        synth_hess = self._read_synth_hess()
+        hess_stack = np.dstack(synth_hess)
+        A = np.swapaxes(np.atleast_3d(self._amps), 1, 2)
+        hess_stack = A * hess_stack
+        return hess_stack
+
+    def _read_synth_hess(self):
+        hesses = []
+        for name in self._synth.lockfile.active_groups:
+            synth_path = os.path.join(starfish_dir, name + self._plane.suffix)
+            h = self._plane. read_hess(synth_path)
+            hesses.append(h)
+        return hesses
