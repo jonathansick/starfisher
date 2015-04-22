@@ -37,6 +37,9 @@ class Synth(object):
         isochrone library
     lockfile : :class:`Lockfile` instance
         A prepared :class:`Lockfile` instance.
+    bands : tuple
+        A sequence of bandpass names, matching those used to define the
+        ColorPlanes.
     rel_extinction : `ndarray`, `(n_bands, 1)`
         Sequence of relative extinction values for each band. The bands must be
         ordered as in the isochrones. One band *must* have a relative
@@ -72,11 +75,13 @@ class Synth(object):
         with the :meth:`add_cmd` method.
     """
     def __init__(self, synth_dir, library_builder, lockfile, crowdfile,
+                 bands,
                  rel_extinction, young_extinction=None, old_extinction=None,
                  nstars=1000000, verb=3, interp_err=True,
                  seed=256, mass_span=(0.5, 100.), fbinary=0.5,
                  planes=None):
         super(Synth, self).__init__()
+        self.bands = bands
         self.library_builder = library_builder
         self.lockfile = lockfile
         self.synth_dir = synth_dir
@@ -220,7 +225,7 @@ class Synth(object):
 
             # CMD section
             for cmd in self._cmds:
-                lines.extend(cmd.synth_config)
+                lines.extend(cmd.synth_config(self.bands))
 
             # Crowding section
             lines.extend(self.crowdfile.config_section)

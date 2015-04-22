@@ -67,6 +67,7 @@ class PipelineBase(object):
                            self.builder,
                            self.lockfile,
                            self.crowd,
+                           self.bands,
                            self.rel_extinction,
                            young_extinction=self.young_av,
                            old_extinction=self.old_av,

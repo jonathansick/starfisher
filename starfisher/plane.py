@@ -21,12 +21,12 @@ class ColorPlane(object):
 
     Parameters
     ----------
-    x_mag : int or tuple
-        Indices (0-based) of bands to form the x-axis. If `x_mag` is a
-        int, then the x-axis is that magnitude. If `x_mag` is a
+    x_mag : str or tuple
+        Band labels to form the x-axis. If `x_mag` is a
+        str, then the x-axis is that magnitude. If `x_mag` is a
         length-2 tuple, then the x-axis is the difference (colour) of
         those two magnitudes.
-    y_mag : int or tuple
+    y_mag : str or tuple
         Equivalent to `x_mag`, but defines the y-axis.
     x_span : tuple (length-2)
         Tuple of the minimum and maximum values along the x-axis.
@@ -49,26 +49,16 @@ class ColorPlane(object):
         Size of CMD pixels (in magnitudes).
     """
     def __init__(self, x_mag, y_mag, x_span, y_span, y_crowding_max,
-                 suffix=None, x_label="x", y_label="y", dpix=0.05,
+                 suffix='.plane', x_label="x", y_label="y", dpix=0.05,
                  nx=None, ny=None):
         super(ColorPlane, self).__init__()
-        if isinstance(y_mag, int):
+        if isinstance(y_mag, basestring):
             self._is_cmd = True
         else:
             self._is_cmd = False
-        if not isinstance(x_mag, int):
-            x_str = "-".join([str(i + 1) for i in x_mag])
-        else:
-            x_str = str(x_mag + 1)
-        if not isinstance(y_mag, int):
-            y_str = "-".join([str(i + 1) for i in y_mag])
-        else:
-            y_str = str(y_mag + 1)
-        if suffix is None:
-            suffix = "".join((x_str, y_str)).replace('-', '')
         self.suffix = suffix
-        self.x_str = x_str
-        self.y_str = y_str
+        self.x_mag = x_mag
+        self.y_mag = y_mag
         self.x_span = x_span
         self.y_span = y_span
         self.y_crowding_max = y_crowding_max
@@ -84,11 +74,24 @@ class ColorPlane(object):
     def is_cmd(self):
         return self._is_cmd
 
-    @property
-    def synth_config(self):
+    def x_str(self, bands):
+        if not isinstance(self.x_mag, basestring):
+            x = "-".join([str(bands.index(m) + 1) for m in self.x_mag])
+        else:
+            x = str(bands.index(self.x_mag) + 1)
+        return x
+
+    def y_str(self, bands):
+        if not isinstance(self.y_mag, basestring):
+            y = "-".join([str(bands.index(m) + 1) for m in self.y_mag])
+        else:
+            y = str(bands.index(self.y_mag) + 1)
+        return y
+
+    def synth_config(self, bands):
         lines = []
-        lines.append(self.x_str)
-        lines.append(self.y_str)
+        lines.append(self.x_str(bands))
+        lines.append(self.y_str(bands))
         lines.append("%.2f" % min(self.x_span))
         lines.append("%.2f" % max(self.x_span))
         lines.append("%.2f" % min(self.y_span))
