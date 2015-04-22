@@ -17,6 +17,7 @@ import astropy.units as u
 from starfisher import LibraryBuilder
 from starfisher import SimHess
 from starfisher import Synth
+from starfisher import SFH
 from starfisher import ExtinctionDistribution
 from starfisher import MockNullCrowdingTable
 from starfisher.plots import plot_hess
@@ -78,6 +79,19 @@ class PipelineBase(object):
             os.path.join(full_synth_dir, "z*"))) == 0
         if existing_synth:
             self.synth.run_synth(n_cpu=4, clean=False)
+
+    def fit(self, fit_key, plane_keys, redo=False):
+        fit_dir = os.path.join(self.root_dir, fit_key)
+        data_root = os.path.join(fit_dir, "phot.")
+        planes = []
+        for plane_key in plane_keys:
+            plane = self.planes[plane_key]
+            planes.append(plane)
+            self.write_phot(plane.x_mag, plane.y_mag, data_root, plane.suffix)
+        sfh = SFH(data_root, self.synth, fit_dir, planes=planes)
+        if (not os.path.exists(sfh.full_outfile_path)) or redo:
+            sfh.run_sfh()
+        self.fits[fit_key] = sfh
 
     def plot_sim_hess(self, ax, plane_key):
         plane = self.planes[plane_key]
