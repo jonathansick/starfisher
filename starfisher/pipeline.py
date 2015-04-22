@@ -25,6 +25,21 @@ from starfisher.plots import plot_hess
 STARFISH = os.getenv("STARFISH")
 
 
+class DatasetBase(object):
+    """Abstract baseclass for pipeline components that write observational
+    data.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, **kwargs):
+        print "DatasetBase", kwargs
+        super(DatasetBase, self).__init__(**kwargs)
+
+    @abc.abstractmethod
+    def write_phot(self, x_band, y_band, data_root, suffix):
+        pass
+
+
 class PipelineBase(object):
     """Abstract baseclass for running StarFISH pipelines."""
     __metaclass__ = abc.ABCMeta
@@ -80,14 +95,15 @@ class PipelineBase(object):
         if existing_synth:
             self.synth.run_synth(n_cpu=4, clean=False)
 
-    def fit(self, fit_key, plane_keys, redo=False):
+    def fit(self, fit_key, plane_keys, dataset, redo=False):
         fit_dir = os.path.join(self.root_dir, fit_key)
         data_root = os.path.join(fit_dir, "phot.")
         planes = []
         for plane_key in plane_keys:
             plane = self.planes[plane_key]
             planes.append(plane)
-            self.write_phot(plane.x_mag, plane.y_mag, data_root, plane.suffix)
+            dataset.write_phot(plane.x_mag, plane.y_mag,
+                               data_root, plane.suffix)
         sfh = SFH(data_root, self.synth, fit_dir, planes=planes)
         if (not os.path.exists(sfh.full_outfile_path)) or redo:
             sfh.run_sfh()
@@ -130,21 +146,6 @@ class IsochroneSetBase():
                                       iverb=3)
         if not os.path.exists(self.builder.full_isofile_path):
             self.builder.install()
-
-
-class DatasetBase(object):
-    """Abstract baseclass for pipeline components that write observational
-    data.
-    """
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, **kwargs):
-        print "DatasetBase", kwargs
-        super(DatasetBase, self).__init__(**kwargs)
-
-    @abc.abstractmethod
-    def write_phot(self, x_band, y_band, data_root, suffix):
-        pass
 
 
 class PlaneBase(object):
