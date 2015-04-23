@@ -28,6 +28,7 @@ from starfisher.plots import plot_hess
 from starfisher.plots import plot_lock_polygons
 from starfisher.plots import plot_isochrone_logage_logzsol
 from starfisher.sfhplot import ChiTriptykPlot
+from starfisher.sfhplot import LinearSFHCirclePlot, SFHCirclePlot
 
 STARFISH = os.getenv("STARFISH")
 
@@ -169,6 +170,22 @@ class PipelineBase(object):
                       transform=ax_model.transAxes, size=8, ha='left')
         ax_chi.text(0.0, 1.01, r"$\log \chi^2$",
                     transform=ax_chi.transAxes, size=8, ha='left')
+
+    def plot_linear_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2)):
+        sfh = self.fits[fit_key]
+        cp = LinearSFHCirclePlot(sfh.solution_table())
+        cp.plot_in_ax(ax, max_area=800)
+        for tl in ax.get_ymajorticklabels():
+            tl.set_visible(False)
+        ax.set_ylim(*ylim)
+
+    def plot_log_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2)):
+        sfh = self.fits[fit_key]
+        cp = SFHCirclePlot(sfh.solution_table())
+        cp.plot_in_ax(ax, max_area=800)
+        for logage in np.log10(np.arange(1, 13, 1) * 1e9):
+            ax.axvline(logage, c='0.8', zorder=-1)
+        ax.set_ylim(*ylim)
 
 
 class IsochroneSetBase():

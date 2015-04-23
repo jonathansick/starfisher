@@ -334,7 +334,7 @@ class SimHess(object):
         history.
         """
         t = sfh.solution_table()
-        amps = t['sfr']
+        amps = t['amp_nstars']
         return cls(sfh.synth, colorplane, amps)
 
     @property
