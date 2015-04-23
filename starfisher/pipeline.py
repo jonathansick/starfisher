@@ -14,13 +14,20 @@ import numpy as np
 from astropy.coordinates import Distance
 import astropy.units as u
 
+# import palettable
+import cubehelix
+
 from starfisher import LibraryBuilder
 from starfisher import SimHess
 from starfisher import Synth
+from starfisher.plane import StarCatalogHess
 from starfisher import SFH
 from starfisher import ExtinctionDistribution
 from starfisher import MockNullCrowdingTable
 from starfisher.plots import plot_hess
+from starfisher.plots import plot_lock_polygons
+from starfisher.plots import plot_isochrone_logage_logzsol
+from starfisher.sfhplot import ChiTriptykPlot
 
 STARFISH = os.getenv("STARFISH")
 
@@ -114,6 +121,50 @@ class PipelineBase(object):
         sim = self.get_sim_hess(plane_key)
         plot_hess(ax, sim.hess, plane, sim.origin,
                   imshow_args=None)
+
+    def plot_fit_hess(self, ax, fit_key, plane_key):
+        plane = self.planes[plane_key]
+        fit_hess = SimHess.from_sfh_solution(self.fits[fit_key], plane)
+        plot_hess(ax, fit_hess.hess, plane, fit_hess.origin,
+                  imshow_args=None)
+
+    def plot_obs_hess(self, ax, dataset, plane_key):
+        plane = self.planes[plane_key]
+        x = dataset.get_phot(plane.x_mag)
+        y = dataset.get_phot(plane.y_mag)
+        obs_hess = StarCatalogHess(x, y, plane)
+        plot_hess(ax, obs_hess.hess, plane, obs_hess.origin,
+                  imshow_args=None)
+
+    def plot_lockfile(self, ax,
+                      logage_lim=(6.2, 10.2),
+                      logzzsol_lim=(-0.2, 0.2)):
+        plot_isochrone_logage_logzsol(ax, self.builder, c='k', s=8)
+        plot_lock_polygons(ax, self.lockfile, facecolor='None', edgecolor='r')
+        ax.set_xlim(*logage_lim)
+        ax.set_ylim(*logzzsol_lim)
+        ax.set_xlabel(r"$\log(A)$")
+        ax.set_ylabel(r"$\log(Z/Z_\odot)$")
+
+    def plot_triptyk(self, fig, ax_obs, ax_model, ax_chi, fit_key, plane_key,
+                     xtick=1., xfmt="%.0f"):
+        cmapper = lambda: cubehelix.cmap(startHue=240, endHue=-300, minSat=1,
+                                         maxSat=2.5, minLight=.3,
+                                         maxLight=.8, gamma=.9)
+        fit = self.fits[fit_key]
+        plane = self.planes[plane_key]
+        ctp = ChiTriptykPlot(fit, plane)
+        ctp.setup_axes(fig, ax_obs=ax_obs, ax_mod=ax_model, ax_chi=ax_chi,
+                       major_x=xtick, major_x_fmt=xfmt)
+        ctp.plot_obs_in_ax(ax_obs, cmap=cmapper())
+        ctp.plot_mod_in_ax(ax_model, cmap=cmapper())
+        ctp.plot_chi_in_ax(ax_chi, cmap=cubehelix.cmap())
+        ax_obs.text(0.0, 1.01, "Observed",
+                    transform=ax_obs.transAxes, size=8, ha='left')
+        ax_model.text(0.0, 1.01, "Model",
+                      transform=ax_model.transAxes, size=8, ha='left')
+        ax_chi.text(0.0, 1.01, r"$\log \chi^2$",
+                    transform=ax_chi.transAxes, size=8, ha='left')
 
 
 class IsochroneSetBase():
