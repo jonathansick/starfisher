@@ -107,7 +107,11 @@ class PipelineBase(object):
         if existing_synth:
             self.synth.run_synth(n_cpu=4, clean=False)
 
-    def fit(self, fit_key, plane_keys, dataset, redo=False):
+    @property
+    def hold_template(self):
+        return self.lockfile.empty_hold
+
+    def fit(self, fit_key, plane_keys, dataset, redo=False, hold=None):
         fit_dir = os.path.join(self.root_dir, fit_key)
         data_root = os.path.join(fit_dir, "phot.")
         planes = []
@@ -118,7 +122,7 @@ class PipelineBase(object):
                                data_root, plane.suffix)
         sfh = SFH(data_root, self.synth, fit_dir, planes=planes)
         if (not os.path.exists(sfh.full_outfile_path)) or redo:
-            sfh.run_sfh()
+            sfh.run_sfh(hold=hold)
         self.fits[fit_key] = sfh
 
     def plot_sim_hess(self, ax, plane_key):
