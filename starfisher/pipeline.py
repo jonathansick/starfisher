@@ -196,18 +196,20 @@ class PipelineBase(object):
         ax_chi.text(0.0, 1.01, r"$\log \chi^2$",
                     transform=ax_chi.transAxes, size=8, ha='left')
 
-    def plot_linear_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2)):
+    def plot_linear_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2),
+                                amp_key='sfr'):
         sfh = self.fits[fit_key]
         cp = LinearSFHCirclePlot(sfh.solution_table())
-        cp.plot_in_ax(ax, max_area=800)
+        cp.plot_in_ax(ax, max_area=800, amp_key=amp_key)
         for tl in ax.get_ymajorticklabels():
             tl.set_visible(False)
         ax.set_ylim(*ylim)
 
-    def plot_log_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2)):
+    def plot_log_sfh_circles(self, ax, fit_key, ylim=(-0.2, 0.2),
+                             amp_key='sfr'):
         sfh = self.fits[fit_key]
         cp = SFHCirclePlot(sfh.solution_table())
-        cp.plot_in_ax(ax, max_area=800)
+        cp.plot_in_ax(ax, max_area=800, amp_key=amp_key)
         for logage in np.log10(np.arange(1, 13, 1) * 1e9):
             ax.axvline(logage, c='0.8', zorder=-1)
         ax.set_ylim(*ylim)
@@ -371,4 +373,34 @@ def show_fit(pipeline, dataset, fit_key, plane_key):
     diff_cb.locator = mpl.ticker.MultipleLocator(20)
     diff_cb.update_ticks()
 
+    fig.show()
+
+
+def show_sfh(pipeline, fit):
+    fig = plt.figure(figsize=(8, 5))
+    gs = GridSpec(2, 2, wspace=0.1, hspace=0.2, bottom=0.2, right=0.95)
+    ax_sfr_log = fig.add_subplot(gs[0, 0])
+    ax_sfr_lin = fig.add_subplot(gs[0, 1])
+    ax_n_log = fig.add_subplot(gs[1, 0])
+    ax_n_lin = fig.add_subplot(gs[1, 1])
+
+    ax_sfr_log.text(0.1, 0.9, "SFR(t)",
+                    transform=ax_sfr_log.transAxes, va='top')
+    ax_sfr_lin.text(0.1, 0.9, "SFR(t)",
+                    transform=ax_sfr_lin.transAxes, va='top')
+    ax_n_log.text(0.1, 0.9, r"$N_\star$",
+                  transform=ax_n_log.transAxes, va='top')
+    ax_n_lin.text(0.1, 0.9, r"$N_\star$",
+                  transform=ax_n_lin.transAxes, va='top')
+
+    pipeline.plot_log_sfh_circles(ax_sfr_log, 'rgb', ylim=(-0.2, 0.2))
+    pipeline.plot_linear_sfh_circles(ax_sfr_lin, 'rgb', ylim=(-0.2, 0.2))
+    pipeline.plot_log_sfh_circles(ax_n_log, 'rgb', ylim=(-0.2, 0.2),
+                                  amp_key='amp_nstars')
+    pipeline.plot_linear_sfh_circles(ax_n_lin, 'rgb', ylim=(-0.2, 0.2),
+                                     amp_key='amp_nstars')
+    ax_sfr_lin.set_xlabel('')
+    ax_sfr_lin.set_ylabel('')
+    ax_sfr_log.set_xlabel('')
+    ax_n_lin.set_ylabel('')
     fig.show()

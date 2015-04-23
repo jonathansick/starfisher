@@ -34,7 +34,7 @@ class LinearSFHCirclePlot(object):
         """Formatter for log(age) axis."""
         return mpl.ticker.FormatStrFormatter("%4.1f")
 
-    def plot_in_ax(self, ax, max_area=200.):
+    def plot_in_ax(self, ax, max_area=200., amp_key='sfr'):
         """Plot the SFH in the given axes.
 
         Parameters
@@ -47,7 +47,8 @@ class LinearSFHCirclePlot(object):
             Tweak this value to make a plot that neither oversaturates,
             nor produces points too small to see.
         """
-        scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
+        amp = self._table[amp_key]
+        scaled_area = amp / amp.max() * max_area
         ZZsol = np.log10(self._table['Z'] / 0.019)
         ax.scatter(10. ** (self._table['log(age)'] - 9.), ZZsol,
                    s=scaled_area,
@@ -85,7 +86,7 @@ class SFHCirclePlot(object):
         """Formatter for log(age) axis."""
         return mpl.ticker.FormatStrFormatter("%4.1f")
 
-    def plot_in_ax(self, ax, max_area=200.):
+    def plot_in_ax(self, ax, max_area=200., amp_key='sfr'):
         """Plot the SFH in the given axes.
 
         Parameters
@@ -98,7 +99,8 @@ class SFHCirclePlot(object):
             Tweak this value to make a plot that neither oversaturates,
             nor produces points too small to see.
         """
-        scaled_area = self._table['sfr'] / self._table['sfr'].max() * max_area
+        amp = self._table[amp_key]
+        scaled_area = amp / amp.max() * max_area
         ZZsol = np.log10(self._table['Z'] / 0.019)
         ax.scatter(self._table['log(age)'], ZZsol, s=scaled_area,
                    c='k', marker='o', linewidths=0.)
