@@ -125,6 +125,19 @@ class PipelineBase(object):
             sfh.run_sfh(hold=hold)
         self.fits[fit_key] = sfh
 
+    def make_sim_hess(self, plane_key):
+        return self.get_sim_hess(plane_key)
+
+    def make_fit_hess(self, fit_key, plane_key):
+        plane = self.planes[plane_key]
+        return SimHess.from_sfh_solution(self.fits[fit_key], plane)
+
+    def make_obs_hess(self, dataset, plane_key):
+        plane = self.planes[plane_key]
+        x = dataset.get_phot(plane.x_mag)
+        y = dataset.get_phot(plane.y_mag)
+        return StarCatalogHess(x, y, plane)
+
     def plot_sim_hess(self, ax, plane_key):
         plane = self.planes[plane_key]
         sim = self.get_sim_hess(plane_key)
