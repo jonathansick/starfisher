@@ -14,8 +14,11 @@ import numpy as np
 from astropy.coordinates import Distance
 import astropy.units as u
 
-# import palettable
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import cubehelix
+from palettable.colorbrewer.diverging import RdBu_11
 
 from starfisher import LibraryBuilder
 from starfisher import SimHess
@@ -138,25 +141,30 @@ class PipelineBase(object):
         y = dataset.get_phot(plane.y_mag)
         return StarCatalogHess(x, y, plane)
 
-    def plot_sim_hess(self, ax, plane_key):
+    def plot_sim_hess(self, ax, plane_key, imshow=None):
         plane = self.planes[plane_key]
         sim = self.get_sim_hess(plane_key)
-        plot_hess(ax, sim.hess, plane, sim.origin,
-                  imshow_args=None)
+        return plot_hess(ax, sim.hess, plane, sim.origin,
+                         imshow_args=imshow)
 
-    def plot_fit_hess(self, ax, fit_key, plane_key):
+    def plot_fit_hess(self, ax, fit_key, plane_key, imshow=None):
         plane = self.planes[plane_key]
         fit_hess = SimHess.from_sfh_solution(self.fits[fit_key], plane)
-        plot_hess(ax, fit_hess.hess, plane, fit_hess.origin,
-                  imshow_args=None)
+        return plot_hess(ax, fit_hess.hess, plane, fit_hess.origin,
+                         imshow_args=imshow)
 
-    def plot_obs_hess(self, ax, dataset, plane_key):
+    def plot_obs_hess(self, ax, dataset, plane_key, imshow=None):
         plane = self.planes[plane_key]
         x = dataset.get_phot(plane.x_mag)
         y = dataset.get_phot(plane.y_mag)
         obs_hess = StarCatalogHess(x, y, plane)
-        plot_hess(ax, obs_hess.hess, plane, obs_hess.origin,
-                  imshow_args=None)
+        return plot_hess(ax, obs_hess.hess, plane, obs_hess.origin,
+                         imshow_args=imshow)
+
+    def plot_hess_array(self, ax, hess, plane_key, imshow=None, log=True):
+        plane = self.planes[plane_key]
+        return plot_hess(ax, hess, plane, plane.origin,
+                         imshow_args=imshow, log=log)
 
     def plot_lockfile(self, ax,
                       logage_lim=(6.2, 10.2),
@@ -304,3 +312,63 @@ class ExtinctionBase(object):
         self.rel_extinction = np.ones(self.n_bands, dtype=float)
         for av in (self.young_av, self.old_av):
             av.set_uniform(0.)
+
+
+def show_fit(pipeline, dataset, fit_key, plane_key):
+    cube_map = cubehelix.cmap(startHue=240, endHue=-300, minSat=1,
+                              maxSat=2.5, minLight=.3,
+                              maxLight=.8, gamma=.9)
+    obs_hess = pipeline.make_obs_hess(dataset, plane_key)
+    fit_hess = pipeline.make_fit_hess(fit_key, plane_key)
+    sigma = np.sqrt(obs_hess.hess)
+    chi = ((obs_hess.hess - fit_hess.hess) / sigma) ** 2.
+    diff = obs_hess.hess - fit_hess.hess
+
+    fig = plt.figure(figsize=(14, 7))
+    gs = GridSpec(2, 4, wspace=0.4, bottom=0.2, right=0.95,
+                  width_ratios=(1, 1, 1, 1), height_ratios=(0.1, 1))
+    ax_obs = fig.add_subplot(gs[1, 0])
+    ax_model = fig.add_subplot(gs[1, 1])
+    ax_chi = fig.add_subplot(gs[1, 2])
+    ax_diff = fig.add_subplot(gs[1, 3])
+    ax_obs_cb = fig.add_subplot(gs[0, 0])
+    ax_model_cb = fig.add_subplot(gs[0, 1])
+    ax_chi_cb = fig.add_subplot(gs[0, 2])
+    ax_diff_cb = fig.add_subplot(gs[0, 3])
+
+    fit_map = pipeline.plot_fit_hess(ax_model, fit_key, plane_key,
+                                     imshow=dict(vmin=0, vmax=3.,
+                                                 cmap=cube_map))
+    fit_cb = plt.colorbar(fit_map, cax=ax_model_cb, orientation='horizontal')
+    fit_cb.set_label(r"$\log(N_*)$ Model")
+    fit_cb.ax.xaxis.set_ticks_position('top')
+    fit_cb.locator = mpl.ticker.MultipleLocator(0.5)
+    fit_cb.update_ticks()
+
+    obs_map = pipeline.plot_obs_hess(ax_obs, dataset, plane_key,
+                                     imshow=dict(vmin=0, vmax=3.,
+                                                 cmap=cube_map))
+    obs_cb = plt.colorbar(obs_map, cax=ax_obs_cb, orientation='horizontal')
+    obs_cb.set_label(r"$\log(N_*)$ Obs.")
+    obs_cb.ax.xaxis.set_ticks_position('top')
+    obs_cb.locator = mpl.ticker.MultipleLocator(0.5)
+    obs_cb.update_ticks()
+
+    chi_map = pipeline.plot_hess_array(ax_chi, chi, plane_key, log=False,
+                                       imshow=dict(vmax=20, cmap=cube_map))
+    chi_cb = plt.colorbar(chi_map, cax=ax_chi_cb, orientation='horizontal',)
+    chi_cb.set_label(r"$\chi^2$")
+    chi_cb.ax.xaxis.set_ticks_position('top')
+    chi_cb.locator = mpl.ticker.MultipleLocator(5)
+    chi_cb.update_ticks()
+
+    diff_map = pipeline.plot_hess_array(ax_diff, diff, plane_key, log=False,
+                                        imshow=dict(vmin=-50, vmax=50,
+                                                    cmap=RdBu_11.mpl_colormap))
+    diff_cb = plt.colorbar(diff_map, cax=ax_diff_cb, orientation='horizontal')
+    diff_cb.set_label(r"$\Delta_\mathrm{obs-model}$ ($N_*$)")
+    diff_cb.ax.xaxis.set_ticks_position('top')
+    diff_cb.locator = mpl.ticker.MultipleLocator(20)
+    diff_cb.update_ticks()
+
+    fig.show()
