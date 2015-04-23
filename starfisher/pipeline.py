@@ -43,6 +43,10 @@ class DatasetBase(object):
         super(DatasetBase, self).__init__(**kwargs)
 
     @abc.abstractmethod
+    def get_phot(self, band):
+        pass
+
+    @abc.abstractmethod
     def write_phot(self, x_band, y_band, data_root, suffix):
         pass
 
