@@ -8,6 +8,7 @@ Classes for configuring extinction.
 
 import os
 
+from pkg_resources import resource_stream, resource_exists
 import numpy as np
 from astropy.table import Table
 
@@ -64,3 +65,23 @@ class ExtinctionDistribution(object):
 
         t = Table([self._extinction_array], names=['A'])
         t.write(full_path, format='ascii.no_header', delimiter=' ')
+
+
+class SF11ExtinctionCurve(object):
+    """Extintion laws based on """
+    def __init__(self):
+        super(SF11ExtinctionCurve, self).__init__()
+        path = "data/schlafly_finkbeiner_2011_table6.txt"
+        assert resource_exists(__name__, path)
+        self.data = Table.read(resource_stream(__name__, path),
+                               delimiter='\t',
+                               guess=False,
+                               quotechar="'",
+                               format="ascii.commented_header")
+
+    def __getitem__(self, key):
+        i = np.where(self.data['bandpass'] == key)[0][0]
+        return self.data['R_V_3.1'][i]
+
+    def extinction_ratio(self, band, ref_band='Landolt V'):
+        return self[band] / self[ref_band]
