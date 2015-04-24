@@ -303,6 +303,31 @@ class StarCatalogHess(object):
         return self._plane.extent
 
 
+class SynthHess(object):
+    """Hess diagram made by Synth.
+
+    Informally uses the same API and ColorPlane and SimHess.
+    (I should formalize this API).
+    """
+    def __init__(self, synth_path, colorplane):
+        super(SynthHess, self).__init__()
+        self._plane = colorplane
+        self._h = self._plane.read_hess(synth_path)
+
+    @property
+    def hess(self):
+        """The Hess diagram as numpy array."""
+        return self._h
+
+    @property
+    def origin(self):
+        return 'lower'
+
+    @property
+    def extent(self):
+        return self._plane.extent
+
+
 class SimHess(object):
     """Builds Hess diagrams from synthetic SSP hess diagrams made by `synth`.
 
@@ -379,6 +404,6 @@ class SimHess(object):
         hesses = []
         for name in self._synth.lockfile.active_groups:
             synth_path = os.path.join(starfish_dir, name + self._plane.suffix)
-            h = self._plane. read_hess(synth_path)
+            h = self._plane.read_hess(synth_path)
             hesses.append(h)
         return hesses

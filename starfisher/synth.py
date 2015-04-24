@@ -17,6 +17,7 @@ import matplotlib.gridspec as gridspec
 
 from starfisher.pathutils import starfish_dir, EnterStarFishDirectory
 from starfisher.plots import plot_synth_hess
+from starfisher.plane import SynthHess
 
 
 class Synth(object):
@@ -265,6 +266,11 @@ class Synth(object):
         for path in paths:
             logging.warning("Removing %s" % path)
             os.remove(path)
+
+    def get_hess(self, plane, group_name):
+        """Get the synth Hess diagram as a Hess instance."""
+        synth_path = os.path.join(starfish_dir, group_name + plane.suffix)
+        return SynthHess(synth_path, plane)
 
     def plot_all_hess(self, plotdir, **plot_args):
         """Plot Hess (binned CMD) diagrams of all synthetic CMD planes.
