@@ -68,10 +68,10 @@ class SFH(object):
     def full_chi_path(self):
         return os.path.join(starfish_dir, self.chi_path)
 
-    def run_sfh(self):
+    def run_sfh(self, hold=None):
         """Run the StarFISH `sfh` software."""
         self.synth.lockfile.write_cmdfile(self._cmd_path)
-        self.synth.lockfile.write_holdfile(self._hold_path)
+        self.synth.lockfile.write_holdfile(self._hold_path, hold=hold)
         self.mask.write(self._mask_path)
         self._write_sfh_input()
         with EnterStarFishDirectory():
