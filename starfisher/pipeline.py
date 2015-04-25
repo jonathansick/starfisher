@@ -30,6 +30,7 @@ from starfisher import MockNullCrowdingTable
 from starfisher.plots import plot_hess
 from starfisher.plots import plot_lock_polygons
 from starfisher.plots import plot_isochrone_logage_logzsol
+from starfisher.sfhplot import plot_sfh_line
 from starfisher.sfhplot import ChiTriptykPlot
 from starfisher.sfhplot import LinearSFHCirclePlot, SFHCirclePlot
 
@@ -403,4 +404,31 @@ def show_sfh(pipeline, fit):
     ax_sfr_lin.set_ylabel('')
     ax_sfr_log.set_xlabel('')
     ax_n_lin.set_ylabel('')
+    fig.show()
+
+
+def show_sfh_line(pipeline, fit):
+    fig = plt.figure(figsize=(7, 7))
+    gs = GridSpec(2, 2, wspace=0.1, hspace=0.1, bottom=0.2, right=0.95)
+
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, 0])
+    ax4 = fig.add_subplot(gs[1, 1])
+
+    tbl = pipeline.fits['rgb'].solution_table()
+
+    plot_sfh_line(ax1, tbl, amp_key='sfr',
+                  log_age=True, legend=False, x_label=False)
+    plot_sfh_line(ax2, tbl, amp_key='sfr',
+                  log_age=False, legend=True, x_label=False, y_label=False)
+    plot_sfh_line(ax3, tbl, amp_key='amp_nstars',
+                  log_age=True, legend=False)
+    plot_sfh_line(ax4, tbl, amp_key='amp_nstars',
+                  log_age=False, legend=False, y_label=False)
+
+    for logage in np.log10(np.arange(1, 14, 1) * 1e9):
+        ax1.axvline(logage, c='0.8', zorder=-1)
+        ax3.axvline(logage, c='0.8', zorder=-1)
+
     fig.show()
