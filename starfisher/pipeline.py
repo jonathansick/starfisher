@@ -17,7 +17,7 @@ import astropy.units as u
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-import cubehelix
+from palettable.cubehelix import perceptual_rainbow_16
 from palettable.colorbrewer.diverging import RdBu_11
 
 from starfisher import LibraryBuilder
@@ -187,9 +187,9 @@ class PipelineBase(object):
         ctp = ChiTriptykPlot(fit, plane)
         ctp.setup_axes(fig, ax_obs=ax_obs, ax_mod=ax_model, ax_chi=ax_chi,
                        major_x=xtick, major_x_fmt=xfmt)
-        ctp.plot_obs_in_ax(ax_obs, cmap=cmapper())
-        ctp.plot_mod_in_ax(ax_model, cmap=cmapper())
-        ctp.plot_chi_in_ax(ax_chi, cmap=cubehelix.cmap())
+        ctp.plot_obs_in_ax(ax_obs, cmap=perceptual_rainbow_16.mpl_colormap)
+        ctp.plot_mod_in_ax(ax_model, cmap=perceptual_rainbow_16.mpl_colormap)
+        ctp.plot_chi_in_ax(ax_chi, cmap=perceptual_rainbow_16.mpl_colormap)
         ax_obs.text(0.0, 1.01, "Observed",
                     transform=ax_obs.transAxes, size=8, ha='left')
         ax_model.text(0.0, 1.01, "Model",
@@ -318,9 +318,6 @@ class ExtinctionBase(object):
 
 
 def show_fit(pipeline, dataset, fit_key, plane_key):
-    cube_map = cubehelix.cmap(startHue=240, endHue=-300, minSat=1,
-                              maxSat=2.5, minLight=.3,
-                              maxLight=.8, gamma=.9)
     obs_hess = pipeline.make_obs_hess(dataset, plane_key)
     fit_hess = pipeline.make_fit_hess(fit_key, plane_key)
     sigma = np.sqrt(obs_hess.hess)
