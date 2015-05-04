@@ -179,9 +179,6 @@ class PipelineBase(object):
 
     def plot_triptyk(self, fig, ax_obs, ax_model, ax_chi, fit_key, plane_key,
                      xtick=1., xfmt="%.0f"):
-        cmapper = lambda: cubehelix.cmap(startHue=240, endHue=-300, minSat=1,
-                                         maxSat=2.5, minLight=.3,
-                                         maxLight=.8, gamma=.9)
         fit = self.fits[fit_key]
         plane = self.planes[plane_key]
         ctp = ChiTriptykPlot(fit, plane)
@@ -318,6 +315,8 @@ class ExtinctionBase(object):
 
 
 def show_fit(pipeline, dataset, fit_key, plane_key):
+    cube_map = perceptual_rainbow_16.mpl_colormap
+
     obs_hess = pipeline.make_obs_hess(dataset, plane_key)
     fit_hess = pipeline.make_fit_hess(fit_key, plane_key)
     sigma = np.sqrt(obs_hess.hess)
