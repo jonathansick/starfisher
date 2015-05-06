@@ -373,7 +373,7 @@ def show_fit(pipeline, dataset, fit_key, plane_key):
     fig.show()
 
 
-def show_sfh(pipeline, fit):
+def show_sfh(pipeline, fit_key):
     fig = plt.figure(figsize=(8, 5))
     gs = GridSpec(2, 2, wspace=0.1, hspace=0.2, bottom=0.2, right=0.95)
     ax_sfr_log = fig.add_subplot(gs[0, 0])
@@ -390,11 +390,11 @@ def show_sfh(pipeline, fit):
     ax_n_lin.text(0.1, 0.9, r"$N_\star$",
                   transform=ax_n_lin.transAxes, va='top')
 
-    pipeline.plot_log_sfh_circles(ax_sfr_log, 'rgb', ylim=(-0.2, 0.2))
-    pipeline.plot_linear_sfh_circles(ax_sfr_lin, 'rgb', ylim=(-0.2, 0.2))
-    pipeline.plot_log_sfh_circles(ax_n_log, 'rgb', ylim=(-0.2, 0.2),
+    pipeline.plot_log_sfh_circles(ax_sfr_log, fit_key, ylim=(-0.2, 0.2))
+    pipeline.plot_linear_sfh_circles(ax_sfr_lin, fit_key, ylim=(-0.2, 0.2))
+    pipeline.plot_log_sfh_circles(ax_n_log, fit_key, ylim=(-0.2, 0.2),
                                   amp_key='amp_nstars')
-    pipeline.plot_linear_sfh_circles(ax_n_lin, 'rgb', ylim=(-0.2, 0.2),
+    pipeline.plot_linear_sfh_circles(ax_n_lin, fit_key, ylim=(-0.2, 0.2),
                                      amp_key='amp_nstars')
     ax_sfr_lin.set_xlabel('')
     ax_sfr_lin.set_ylabel('')
@@ -403,7 +403,7 @@ def show_sfh(pipeline, fit):
     fig.show()
 
 
-def show_sfh_line(pipeline, fit):
+def show_sfh_line(pipeline, fit_key):
     fig = plt.figure(figsize=(7, 7))
     gs = GridSpec(2, 2, wspace=0.1, hspace=0.1, bottom=0.2, right=0.95)
 
@@ -412,7 +412,7 @@ def show_sfh_line(pipeline, fit):
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
 
-    tbl = pipeline.fits['rgb'].solution_table()
+    tbl = pipeline.fits[fit_key].solution_table()
 
     plot_sfh_line(ax1, tbl, amp_key='sfr',
                   log_age=True, legend=False, x_label=False)
