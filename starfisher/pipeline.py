@@ -90,6 +90,7 @@ class PipelineBase(object):
         self.build_lockfile()
         self.build_crowding()
         self.build_extinction()
+        self.mask_planes()  # mask planes based on completeness cuts
         self.run_synth()
 
     def run_synth(self):
@@ -268,6 +269,10 @@ class PlaneBase(object):
     @property
     def all_planes(self):
         return [p for k, p in self.planes.iteritems()]
+
+    @property
+    def mask_planes(self):
+        print "USING NULL mask_planes() method call"
 
 
 class LockBase(object):
