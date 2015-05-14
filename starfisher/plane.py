@@ -173,7 +173,6 @@ class ColorPlane(object):
         self._msk['maskflag'][s] = 1
 
     def plot_mask(self, ax, imshow_args=None):
-        mask_image = self.format_hess_array(np.array(self._msk['maskflag']))
         _args = dict(cmap=mpl.cm.gray_r, norm=None,
                      aspect='auto',
                      interpolation='none',
@@ -181,7 +180,11 @@ class ColorPlane(object):
                      alpha=None, vmin=None, vmax=None)
         if imshow_args is not None:
             _args.update(imshow_args)
-        ax.imshow(mask_image, **_args)
+        ax.imshow(self.mask_array, **_args)
+
+    @property
+    def mask_array(self):
+        return self.format_hess_array(np.array(self._msk['maskflag']))
 
     def reshape_pixarray(self, pixarray):
         """Reshape a 1D pixel array into a 2D Hess array.
@@ -314,6 +317,11 @@ class Hess(object):
     def hess(self):
         """The Hess diagram as numpy array."""
         return self._h
+
+    @property
+    def masked_hess(self):
+        """Hess where masked pixels are set to NaN."""
+        pass
 
     @property
     def origin(self):
