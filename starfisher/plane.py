@@ -321,7 +321,10 @@ class Hess(object):
     @property
     def masked_hess(self):
         """Hess where masked pixels are set to NaN."""
-        pass
+        mask = self._plane.mask_array
+        H = np.array(self._h)
+        H[mask == 1] = np.nan
+        return H
 
     @property
     def origin(self):
@@ -347,6 +350,14 @@ class SynthHess(object):
     def hess(self):
         """The Hess diagram as numpy array."""
         return self._h
+
+    @property
+    def masked_hess(self):
+        """Hess where masked pixels are set to NaN."""
+        mask = self._plane.mask_array
+        H = np.array(self._h)
+        H[mask == 1] = np.nan
+        return H
 
     @property
     def origin(self):
@@ -395,6 +406,14 @@ class SimHess(object):
     def hess(self):
         """The Hess diagram as numpy array."""
         return self._h
+
+    @property
+    def masked_hess(self):
+        """Hess where masked pixels are set to NaN."""
+        mask = self._plane.mask_array
+        H = np.array(self._h)
+        H[mask == 1] = np.nan
+        return H
 
     @property
     def origin(self):
