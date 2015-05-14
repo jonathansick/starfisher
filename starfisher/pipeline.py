@@ -112,6 +112,10 @@ class PipelineBase(object):
         if existing_synth:
             self.synth.run_synth(n_cpu=4, clean=False)
 
+    @abc.abstractmethod
+    def mask_planes(self):
+        pass
+
     @property
     def hold_template(self):
         return self.lockfile.empty_hold
@@ -269,10 +273,6 @@ class PlaneBase(object):
     @property
     def all_planes(self):
         return [p for k, p in self.planes.iteritems()]
-
-    @property
-    def mask_planes(self):
-        print "USING NULL mask_planes() method call"
 
 
 class LockBase(object):
