@@ -23,6 +23,7 @@ from palettable.colorbrewer.diverging import RdBu_11
 from starfisher import LibraryBuilder
 from starfisher import SimHess
 from starfisher import Synth
+from starfisher.plane import Hess
 from starfisher.plane import StarCatalogHess
 from starfisher import SFH
 from starfisher import ExtinctionDistribution
@@ -133,6 +134,19 @@ class PipelineBase(object):
         if (not os.path.exists(sfh.full_outfile_path)) or redo:
             sfh.run_sfh(hold=hold)
         self.fits[fit_key] = sfh
+
+    def make_fit_diff_hess(self, dataset, fit_key, plane_key):
+        obs_hess = self.make_obs_hess(dataset, plane_key)
+        fit_hess = self.make_fit_hess(fit_key, plane_key)
+        return Hess(obs_hess.hess - fit_hess.hess,
+                    self.planes[plane_key])
+
+    def make_chisq_hess(self, dataset, fit_key, plane_key):
+        obs_hess = self.make_obs_hess(dataset, plane_key)
+        fit_hess = self.make_fit_hess(fit_key, plane_key)
+        sigma = np.sqrt(obs_hess.hess)
+        chi = ((obs_hess.hess - fit_hess.hess) / sigma) ** 2.
+        return Hess(chi, self.planes[plane_key])
 
     def make_sim_hess(self, plane_key):
         return self.get_sim_hess(plane_key)

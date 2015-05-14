@@ -303,6 +303,27 @@ class StarCatalogHess(object):
         return self._plane.extent
 
 
+class Hess(object):
+    """A generic hess data structure."""
+    def __init__(self, data, colorplane):
+        super(Hess, self).__init__()
+        self._plane = colorplane
+        self._h = data
+
+    @property
+    def hess(self):
+        """The Hess diagram as numpy array."""
+        return self._h
+
+    @property
+    def origin(self):
+        return 'lower'
+
+    @property
+    def extent(self):
+        return self._plane.extent
+
+
 class SynthHess(object):
     """Hess diagram made by Synth.
 
