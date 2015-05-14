@@ -26,6 +26,10 @@ class ExtinctionDistribution(object):
         super(ExtinctionDistribution, self).__init__()
         self._extinction_array = None
 
+    @property
+    def samples(self):
+        return self._extinction_array
+
     def set_samples(self, extinction_array):
         """Set a 1D array of extinction values.
 
