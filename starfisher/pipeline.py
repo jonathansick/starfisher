@@ -148,6 +148,20 @@ class PipelineBase(object):
         chi = ((obs_hess.hess - fit_hess.hess) / sigma) ** 2.
         return Hess(chi, self.planes[plane_key])
 
+    def compute_fit_chi(self, dataset, fit_key, plane_key, chi_hess=None):
+        """Compute the reduced chi-sq for the plane with the given fit.
+
+        Returns both the sum of chi-sq and the total number of pixels in
+        in the plane that were not masked.
+        """
+        if chi_hess is None:
+            chi_hess = self.make_chisq_hess(dataset, fit_key, plane_key)
+        g = np.where(np.isfinite(chi_hess.masked_hess))
+        n_pix = len(g[0])
+        chi_sum = chi_hess.masked_hess[g].sum()
+        n_amp = len(self.lockfile.active_groups)
+        return chi_sum / (n_pix - n_amp)
+
     def make_sim_hess(self, plane_key):
         return self.get_sim_hess(plane_key)
 
