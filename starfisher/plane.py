@@ -184,7 +184,7 @@ class ColorPlane(object):
 
     @property
     def mask_array(self):
-        return self.format_hess_array(np.array(self._msk['maskflag']))
+        return self.reshape_pixarray(np.array(self._msk['maskflag']))
 
     def reshape_pixarray(self, pixarray):
         """Reshape a 1D pixel array into a 2D Hess array.
