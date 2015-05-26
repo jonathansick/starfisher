@@ -28,7 +28,7 @@ from starfisher.plane import StarCatalogHess
 from starfisher import SFH
 from starfisher import ExtinctionDistribution
 from starfisher import MockNullCrowdingTable
-from starfisher.plots import plot_hess
+from starfisher.plots import plot_hess, setup_hess_axes
 from starfisher.plots import plot_lock_polygons
 from starfisher.plots import plot_isochrone_logage_logzsol
 from starfisher.sfhplot import plot_sfh_line
@@ -174,6 +174,10 @@ class PipelineBase(object):
         x = dataset.get_phot(plane.x_mag)
         y = dataset.get_phot(plane.y_mag)
         return StarCatalogHess(x, y, plane)
+
+    def init_plane_axes(self, ax, plane_key):
+        plane = self.planes[plane_key]
+        setup_hess_axes(ax, plane, 'lower')
 
     def plot_sim_hess(self, ax, plane_key, imshow=None):
         plane = self.planes[plane_key]

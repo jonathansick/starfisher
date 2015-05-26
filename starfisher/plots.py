@@ -58,11 +58,15 @@ def plot_hess(ax, hess, plane, origin, log=True, imshow_args=None):
     if imshow_args is not None:
         _imshow.update(imshow_args)
     im = ax.imshow(hess, **_imshow)
+    setup_hess_axes(ax, plane, origin)
+    return im
+
+
+def setup_hess_axes(ax, plane, origin):
     ax.set_xlabel(plane.x_label)
     ax.set_ylabel(plane.y_label)
     ax.set_xlim(*plane.xlim)
     ax.set_ylim(*plane.ylim)
-    return im
 
 
 def plot_isochrone_logage_logzsol(ax, library, **args):
