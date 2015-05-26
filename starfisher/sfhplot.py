@@ -22,7 +22,8 @@ def plot_sfh_line(ax, sfh_table,
                   log_age=True,
                   legend=True,
                   x_label=True,
-                  y_label=True):
+                  y_label=True,
+                  z_colors=palettable.tableau.ColorBlind_10.mpl_colors):
     amp = sfh_table[amp_key]
     if log_amp:
         amp = np.log10(amp)
@@ -36,10 +37,9 @@ def plot_sfh_line(ax, sfh_table,
     z_vals = np.unique(ZZsol)
     srt = np.argsort(z_vals)
 
-    bmap = palettable.colorbrewer.get_map('Set1', 'qualitative', 5,
-                                          reverse=False)
-    ax.set_color_cycle(bmap.mpl_colors)
-    for z in z_vals[srt]:
+    # print "mpl colors", colors
+    ax.set_color_cycle(z_colors)
+    for i, z in enumerate(z_vals[srt]):
         s = np.where(ZZsol == z)[0]
         ax.plot(age[s], amp[s], ls='-',
                 label=r"$\log Z/Z_\odot={0:.3f}$".format(np.round(z,
@@ -78,6 +78,68 @@ def plot_sfh_line(ax, sfh_table,
 
     if legend:
         ax.legend(frameon=False)
+
+
+def plot_single_sfh_line(
+        ax, sfh_table,
+        z_formatter=mpl.ticker.FormatStrFormatter("%.2f"),
+        age_formatter=mpl.ticker.FormatStrFormatter("%4.1f"),
+        age_lim=(1e-3, 14.),
+        amp_key='sfr',
+        log_amp=True,
+        log_age=True,
+        x_label=True,
+        y_label=True,
+        color='dodgerblue',
+        label=None):
+    amp = sfh_table[amp_key]
+    if log_amp:
+        amp = np.log10(amp)
+
+    if not log_age:
+        age = 10. ** (sfh_table['log(age)'] - 9.)  # Gyr
+    else:
+        age = sfh_table['log(age)']
+
+    ZZsol = np.log10(sfh_table['Z'] / 0.019)
+    z_vals = np.unique(ZZsol)
+    srt = np.argsort(z_vals)
+
+    # FIXME
+    z = z_vals[srt[0]]
+    s = np.where(ZZsol == z)[0]
+    ax.plot(age[s], amp[s], ls='-', c=color, label=label)
+
+    if log_age:
+        ax.set_xlabel(r"$\log(A~\mathrm{yr}^{-1})$")
+    else:
+        ax.set_xlabel(r"$A$ (Gyr)")
+
+    if amp_key == 'sfr' and not log_amp:
+        ax.set_ylabel(r"$\mathrm{M}_\odot \mathrm{yr}^{-1}$")
+    elif amp_key == 'sfr' and log_amp:
+        ax.set_ylabel(r"$\log M_\odot \mathrm{yr}^{-1}$")
+    elif amp_key == 'amp_nstars' and not log_amp:
+        ax.set_ylabel(r"$N_\star$")
+    elif amp_key == 'amp_nstars' and log_amp:
+        ax.set_ylabel(r"$\log N_\star$")
+
+    ax.xaxis.set_major_formatter(age_formatter)
+    ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(base=0.5))
+
+    if log_age:
+        ax.set_xlim(np.log10(age_lim[0] * 1e9), np.log10(age_lim[-1] * 1e9))
+    else:
+        ax.set_xlim(*age_lim)
+
+    if not x_label:
+        for tl in ax.get_xmajorticklabels():
+            tl.set_visible(False)
+        ax.set_xlabel('')
+    if not y_label:
+        for tl in ax.get_ymajorticklabels():
+            tl.set_visible(False)
+        ax.set_ylabel('')
 
 
 class LinearSFHCirclePlot(object):
