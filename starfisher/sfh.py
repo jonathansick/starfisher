@@ -135,7 +135,7 @@ class SFH(object):
         with open(os.path.join(starfish_dir, self._sfh_config_path), 'w') as f:
             f.write(txt)
 
-    def solution_table(self, avgmass=1.628):
+    def solution_table(self, avgmass=1.628, marginalize_z=False):
         """Returns a `class`:astropy.table.Table of the derived star formation
         history.
 
@@ -146,6 +146,10 @@ class SFH(object):
         avgmass : float
             Average mass of the stellar population; given the IMF. For a
             Salpeter IMF this is 1.628.
+        marginalize_z : bool
+            If ``True``, the SFH at a given time but for different
+            metallicities will be coadded, resulting in a table with only
+            an age dimension. This can be useful for plotting overall SFH.
         """
         # TODO refactor out to its own class?
         # read in time interval table (produced by lockfile)
@@ -171,6 +175,7 @@ class SFH(object):
         sfr = t['amp_nstars'] * avgmass / dt
 
         # Include Poisson errors in errorbars
+        # FIXME review this code; values at percentiles, or actual errors?
         snstars = np.sqrt(float(nstars))
         _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
         sap = ep + _foo
@@ -182,6 +187,25 @@ class SFH(object):
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
         t.add_columns([csfr, csap, csan])
+
+        if marginalize_z:
+            age_vals = np.unique(t['log(age)'])
+            s = np.argsort(age_vals)
+            age_vals = age_vals[s]
+            binned_t = Table(names=t.colnames)
+            for i, age_val in enumerate(age_vals):
+                tt = t[t['log(age)'] == age_val]
+                # FIXME verify error propagation
+                binned_t.add_row((np.mean(tt['Z']),
+                                  age_val,
+                                  np.sum(tt['amp_nstars']),
+                                  np.sum(tt['amp_nstars_n']),
+                                  np.sum(tt['amp_nstars_p']),
+                                  np.sum(tt['sfr']),
+                                  np.sum(tt['sfr_pos_err']),
+                                  np.sum(tt['sfr_neg_err']),
+                                  ))
+            t = binned_t
 
         return t
 
