@@ -175,11 +175,11 @@ class SFH(object):
         sfr = t['amp_nstars'] * avgmass / dt
 
         # Include Poisson errors in errorbars
-        # FIXME review this code; values at percentiles, or actual errors?
+        # These errorbars are values at +-1 sig percentiles, or actual errors?
         snstars = np.sqrt(float(nstars))
         _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
         sap = ep + _foo
-        san = en + _foo
+        san = en - _foo
         # Truncate error bars if they extend below zero
         san[san < 0.] = 0.
 
@@ -195,15 +195,23 @@ class SFH(object):
             binned_t = Table(names=t.colnames)
             for i, age_val in enumerate(age_vals):
                 tt = t[t['log(age)'] == age_val]
-                # FIXME verify error propagation
+                # error propagation
+                sfr_sigma_pos = np.sqrt(np.sum((tt['sfr_pos_err']
+                                                - tt['sfr']) ** 2.))
+                sfr_sigma_neg = np.sqrt(np.sum((tt['sfr']
+                                                - tt['sfr_neg_err']) ** 2.))
+                amp_sigma_pos = np.sqrt(np.sum((tt['amp_nstars_p']
+                                                - tt['amp_nstars']) ** 2.))
+                amp_sigma_neg = np.sqrt(np.sum((tt['amp_nstars']
+                                                - tt['amp_nstars_n']) ** 2.))
                 binned_t.add_row((np.mean(tt['Z']),
                                   age_val,
                                   np.sum(tt['amp_nstars']),
-                                  np.sum(tt['amp_nstars_n']),
-                                  np.sum(tt['amp_nstars_p']),
+                                  np.sum(tt['amp_nstars']) - amp_sigma_neg,
+                                  amp_sigma_pos - np.sum(tt['amp_nstars']),
                                   np.sum(tt['sfr']),
-                                  np.sum(tt['sfr_pos_err']),
-                                  np.sum(tt['sfr_neg_err']),
+                                  sfr_sigma_pos - np.sum(tt['sfr']),
+                                  np.sum(tt['sfr']) - sfr_sigma_neg,
                                   ))
             t = binned_t
 
