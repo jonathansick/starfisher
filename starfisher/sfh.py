@@ -154,6 +154,7 @@ class SFH(object):
         # TODO refactor out to its own class?
         # read in time interval table (produced by lockfile)
         dt = self.synth.lockfile.group_dt
+        print "sum of dt (Gyr)", dt.sum() / 1e9
 
         # read sfh output
         t = Table.read(self.full_outfile_path,
@@ -176,12 +177,18 @@ class SFH(object):
 
         # Include Poisson errors in errorbars
         # These errorbars are values at +-1 sig percentiles, or actual errors?
-        snstars = np.sqrt(float(nstars))
-        _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
-        sap = ep + _foo
-        san = en - _foo
+        # snstars = np.sqrt(float(nstars))
+        # _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
+        # sap = ep + _foo
+        # san = en - _foo
+
+        poisson_sigma = sfr / np.sqrt(nstars)
+        sap = ep + poisson_sigma
+        san = en + poisson_sigma
         # Truncate error bars if they extend below zero
-        san[san < 0.] = 0.
+        # so that the negative confidence region bottoms out at zero
+        s = np.where((sfr - san) < 0.)[0]
+        san[s] = sfr[s]
 
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
@@ -196,23 +203,18 @@ class SFH(object):
             for i, age_val in enumerate(age_vals):
                 tt = t[t['log(age)'] == age_val]
                 # error propagation
-                sfr_sigma_pos = np.sqrt(np.sum((tt['sfr_pos_err']
-                                                - tt['sfr']) ** 2.))
-                sfr_sigma_neg = np.sqrt(np.sum((tt['sfr']
-                                                - tt['sfr_neg_err']) ** 2.))
-                amp_sigma_pos = np.sqrt(np.sum((tt['amp_nstars_p']
-                                                - tt['amp_nstars']) ** 2.))
-                amp_sigma_neg = np.sqrt(np.sum((tt['amp_nstars']
-                                                - tt['amp_nstars_n']) ** 2.))
+                sfr_sigma_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+                sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
+                amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
+                amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
                 binned_t.add_row((np.mean(tt['Z']),
                                   age_val,
                                   np.sum(tt['amp_nstars']),
-                                  np.sum(tt['amp_nstars']) - amp_sigma_neg,
-                                  amp_sigma_pos - np.sum(tt['amp_nstars']),
+                                  amp_sigma_neg,
+                                  amp_sigma_pos,
                                   np.sum(tt['sfr']),
-                                  sfr_sigma_pos - np.sum(tt['sfr']),
-                                  np.sum(tt['sfr']) - sfr_sigma_neg,
-                                  ))
+                                  sfr_sigma_pos,
+                                  sfr_sigma_neg))
             t = binned_t
 
         return t
