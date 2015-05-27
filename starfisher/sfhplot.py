@@ -116,16 +116,26 @@ def plot_single_sfh_line(
         pos_err = sfh_table['sfr_pos_err'][s]
         neg_err = sfh_table['sfr_neg_err'][s]
         if log_amp:
-            pos_err = np.log10(pos_err)
-            neg_err = np.log10(neg_err)
-            neg_err[~np.isfinite(neg_err)] = -7  # FIXME hack for -inf clipped
+            pos_ci = np.log10(sfh_table['sfr'][s] + pos_err)
+            neg_ci = np.log10(sfh_table['sfr'][s] - neg_err)
+            neg_ci[~np.isfinite(neg_ci)] = -7  # FIXME hack for -inf clipped
         # print "pos_error", np.median(pos_err - amp[s])
         # print "neg", np.median(neg_err - amp[s])
         # print "fillling in error"
         # ax.fill_between(age[s], pos_err, y2=neg_err, facecolor=color,
         #                 alpha=0.2, edgecolor='None')
-        ax.fill_between(age[s], pos_err, y2=neg_err, hatch=hatch_errors,
-                        facecolor='None', edgecolor=color, lw=0., zorder=-10)
+
+        error_args = {'zorder': -10}
+        hatch_error_args = {'facecolor': 'None', 'edgecolor': color,
+                            'lw': 0., 'hatch': hatch_errors}
+        solid_args = {'facecolor': color,
+                      'alpha': 0.2,
+                      'edgecolor': 'None'}
+        if hatch_errors is not None:
+            error_args.update(hatch_error_args)
+        else:
+            error_args.update(solid_args)
+        ax.fill_between(age[s], pos_ci, y2=neg_ci, **error_args)
 
     if log_age:
         ax.set_xlabel(r"$\log(A~\mathrm{yr}^{-1})$")

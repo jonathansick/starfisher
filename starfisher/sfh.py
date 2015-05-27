@@ -176,12 +176,6 @@ class SFH(object):
         sfr = t['amp_nstars'] * avgmass / dt
 
         # Include Poisson errors in errorbars
-        # These errorbars are values at +-1 sig percentiles, or actual errors?
-        # snstars = np.sqrt(float(nstars))
-        # _foo = t['amp_nstars'] * np.sqrt((snstars / nstars) ** 2.)
-        # sap = ep + _foo
-        # san = en - _foo
-
         poisson_sigma = sfr / np.sqrt(nstars)
         sap = ep + poisson_sigma
         san = en + poisson_sigma
