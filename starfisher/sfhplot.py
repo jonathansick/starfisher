@@ -92,7 +92,8 @@ def plot_single_sfh_line(
         y_label=True,
         color='dodgerblue',
         label=None,
-        plot_errors=False):
+        plot_errors=False,
+        hatch_errors=None):
     amp = sfh_table[amp_key]
     if log_amp:
         amp = np.log10(amp)
@@ -109,7 +110,7 @@ def plot_single_sfh_line(
     # FIXME
     z = z_vals[srt[0]]
     s = np.where(ZZsol == z)[0]
-    ax.plot(age[s], amp[s], ls='-', c=color, label=label)
+    ax.plot(age[s], amp[s], ls='-', lw=2.5, c=color, label=label)
 
     if plot_errors and amp_key == 'sfr':
         pos_err = sfh_table['sfr_pos_err'][s]
@@ -121,8 +122,10 @@ def plot_single_sfh_line(
         # print "pos_error", np.median(pos_err - amp[s])
         # print "neg", np.median(neg_err - amp[s])
         # print "fillling in error"
-        ax.fill_between(age[s], pos_err, y2=neg_err, facecolor=color,
-                        alpha=0.2, edgecolor='None')
+        # ax.fill_between(age[s], pos_err, y2=neg_err, facecolor=color,
+        #                 alpha=0.2, edgecolor='None')
+        ax.fill_between(age[s], pos_err, y2=neg_err, hatch=hatch_errors,
+                        facecolor='None', edgecolor=color, lw=0., zorder=-10)
 
     if log_age:
         ax.set_xlabel(r"$\log(A~\mathrm{yr}^{-1})$")
