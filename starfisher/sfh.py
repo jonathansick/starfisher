@@ -221,13 +221,22 @@ class SFH(object):
     def mean_log_age(self):
         """Mean age of a fit, in log(age)."""
         t = self.solution_table(marginalize_z=True)
-        # print "mean_log_age"
-        # print t['log(age)']
-        # print t['sfr']
         m = np.average(t['log(age)'],
                        weights=t['sfr'])
-        print "mean_log_age", m
-        return m
+        # estimate mean uncertainty from positive and negative error lim
+        sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+        # Use resampling to estimate uncertainty of mean
+        n_boot = 1000
+        boot_means = np.empty(n_boot, dtype=np.float)
+        n_ages = len(t)
+        for i in xrange(n_boot):
+            resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
+            mi = np.average(t['log(age)'],
+                            weights=resamp_weights)
+            boot_means[i] = mi
+        sigma_mean = np.std(boot_means)
+        print "mean_log_age", m, sigma_mean
+        return m, sigma_mean
 
     @property
     def mean_age(self):
@@ -235,8 +244,18 @@ class SFH(object):
         age_gyr = 10. ** t['log(age)'] / 1e9
         m = np.average(age_gyr,
                        weights=t['sfr'])
-        print "mean_age", m
-        return m
+        sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+        n_boot = 1000
+        boot_means = np.empty(n_boot, dtype=np.float)
+        n_ages = len(t)
+        for i in xrange(n_boot):
+            resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
+            mi = np.average(age_gyr,
+                            weights=resamp_weights)
+            boot_means[i] = mi
+        sigma_mean = np.std(boot_means)
+        print "mean_age", m, sigma_mean
+        return m, sigma_mean
 
     def plane_index(self, plane):
         """Index of a color plane in the SFH system.
