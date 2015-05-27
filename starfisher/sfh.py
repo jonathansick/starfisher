@@ -217,6 +217,13 @@ class SFH(object):
 
         return t
 
+    @property
+    def mean_log_age(self):
+        """Mean age of a fit, in log(age)."""
+        t = self.solution_table(marginalize_z=True)
+        return np.average(np.log10(t['log(age)']),
+                          weights=t['sfr'])
+
     def plane_index(self, plane):
         """Index of a color plane in the SFH system.
 
