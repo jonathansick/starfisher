@@ -6,7 +6,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 """
 
 import os
-import OrderedDict
+from collections import OrderedDict
 import subprocess
 
 import numpy as np
@@ -136,7 +136,8 @@ class SFH(object):
         with open(os.path.join(starfish_dir, self._sfh_config_path), 'w') as f:
             f.write(txt)
 
-    def solution_table(self, avgmass=1.628, marginalize_z=False):
+    def solution_table(self, avgmass=1.628,
+                       marginalize_z=False, split_z=False):
         """Returns a `class`:astropy.table.Table of the derived star formation
         history.
 
@@ -151,11 +152,16 @@ class SFH(object):
             If ``True``, the SFH at a given time but for different
             metallicities will be coadded, resulting in a table with only
             an age dimension. This can be useful for plotting overall SFH.
+        split_z : bool
+            If ``True``, the return SFH will be a dictionary of tables
+            corresponding to each metallicity track. Keys are logZ/Zsol strings
         """
-        # TODO refactor out to its own class?
         # read in time interval table (produced by lockfile)
         dt = self.synth.lockfile.group_dt
         print "sum of dt (Gyr)", dt.sum() / 1e9
+
+        # TODO refactor out to its own class?
+        assert marginalize_z & split_z is False
 
         # read sfh output
         t = Table.read(self.full_outfile_path,
@@ -170,6 +176,26 @@ class SFH(object):
         _catalog = np.loadtxt(dataset_path)
         nstars = _catalog.shape[0]
 
+        if not split_z:
+            t = self._make_sfh_table(t, dt, nstars,
+                                     avgmass=avgmass,
+                                     marginalize_z=marginalize_z)
+            return t
+        else:
+            tables = OrderedDict()
+            z_vals = np.unique(t['Z'])
+            s = np.argsort(z_vals)
+            z_vals = z_vals[s]
+            z_strs = ["{0:.3f}".format(np.log10(z / 0.019)) for z in z_vals]
+            for z_str, z in zip(z_strs, z_vals):
+                sel = np.where(t['Z'] == z)[0]
+                tables[z_str] = self._make_sfh_table(t[sel], dt[sel],
+                                                     nstars,
+                                                     avgmass=avgmass)
+            return tables
+
+    def _make_sfh_table(self, t, dt, nstars,
+                        avgmass=1.628, marginalize_z=False):
         # Renormalize to SFR (Msun/yr)
         # (Amps in the SFH file have units Nstars.)
         ep = (t['amp_nstars_p'] - t['amp_nstars']) * avgmass / dt
@@ -254,7 +280,6 @@ class SFH(object):
         print "mean_age", m, sigma_mean
         return m, sigma_mean
 
-    # TODO sfh_tables = p.fits[fit_key].solution_table(split_z=True)
     @property
     def mean_age_by_z(self):
         sfh_tables = self.solution_table(split_z=True)
