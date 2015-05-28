@@ -6,6 +6,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 """
 
 import os
+import OrderedDict
 import subprocess
 
 import numpy as np
@@ -252,6 +253,30 @@ class SFH(object):
         sigma_mean = np.std(boot_means)
         print "mean_age", m, sigma_mean
         return m, sigma_mean
+
+    # TODO sfh_tables = p.fits[fit_key].solution_table(split_z=True)
+    @property
+    def mean_age_by_z(self):
+        sfh_tables = self.solution_table(split_z=True)
+        mean_ages = OrderedDict()
+        mean_age_sigmas = OrderedDict()
+        for z, t in sfh_tables.iteritems():
+            age_gyr = 10. ** t['log(age)'] / 1e9
+            m = np.average(age_gyr,
+                           weights=t['sfr'])
+            sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+            n_boot = 1000
+            boot_means = np.empty(n_boot, dtype=np.float)
+            n_ages = len(t)
+            for i in xrange(n_boot):
+                resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
+                mi = np.average(age_gyr,
+                                weights=resamp_weights)
+                boot_means[i] = mi
+            sigma_mean = np.std(boot_means)
+            mean_ages[z] = m
+            mean_age_sigmas[z] = sigma_mean
+        return mean_ages, mean_age_sigmas
 
     def plane_index(self, plane):
         """Index of a color plane in the SFH system.
