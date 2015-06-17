@@ -223,7 +223,9 @@ class SFH(object):
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
-        t.add_columns([csfr, csap, csan, cmass, cmass_pos_err, cmass_neg_err])
+        dt = Column(dt, name='dt', unit='yr')
+        t.add_columns([csfr, csap, csan, cmass, cmass_pos_err, cmass_neg_err,
+                       dt])
 
         if marginalize_z:
             age_vals = np.unique(t['log(age)'])
@@ -250,6 +252,7 @@ class SFH(object):
                                   np.sum(tt['mass']),
                                   mass_err_pos,
                                   mass_err_neg,
+                                  np.mean(tt['dt']),
                                   ))
             t = binned_t
 
