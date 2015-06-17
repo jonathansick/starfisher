@@ -201,6 +201,7 @@ class SFH(object):
         ep = (t['amp_nstars_p'] - t['amp_nstars']) * avgmass / dt
         en = (t['amp_nstars'] - t['amp_nstars_n']) * avgmass / dt
         sfr = t['amp_nstars'] * avgmass / dt
+        mass = t['amp_nstars'] * avgmass  # solar masses produced in bin
 
         # Include Poisson errors in errorbars
         poisson_sigma = sfr / np.sqrt(nstars)
@@ -211,10 +212,11 @@ class SFH(object):
         s = np.where((sfr - san) < 0.)[0]
         san[s] = sfr[s]
 
+        cmass = Column(mass, name='mass', unit='M_solar')
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
-        t.add_columns([csfr, csap, csan])
+        t.add_columns([csfr, csap, csan, cmass])
 
         if marginalize_z:
             age_vals = np.unique(t['log(age)'])
@@ -235,7 +237,9 @@ class SFH(object):
                                   amp_sigma_pos,
                                   np.sum(tt['sfr']),
                                   sfr_sigma_pos,
-                                  sfr_sigma_neg))
+                                  sfr_sigma_neg,
+                                  np.sum(tt['mass']),
+                                  ))
             t = binned_t
 
         return t
