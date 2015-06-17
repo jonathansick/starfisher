@@ -202,6 +202,8 @@ class SFH(object):
         en = (t['amp_nstars'] - t['amp_nstars_n']) * avgmass / dt
         sfr = t['amp_nstars'] * avgmass / dt
         mass = t['amp_nstars'] * avgmass  # solar masses produced in bin
+        mass_err_neg = (t['amp_nstars'] - t['amp_nstars_n']) * avgmass
+        mass_err_pos = (t['amp_nstars_p'] - t['amp_nstars']) * avgmass
 
         # Include Poisson errors in errorbars
         poisson_sigma = sfr / np.sqrt(nstars)
@@ -212,11 +214,16 @@ class SFH(object):
         s = np.where((sfr - san) < 0.)[0]
         san[s] = sfr[s]
 
+        s = np.where((mass - mass_err_neg) < 0.)[0]
+        mass_err_neg[s] = mass[s]
+
         cmass = Column(mass, name='mass', unit='M_solar')
+        cmass_neg_err = Column(mass, name='mass_neg_err', unit='M_solar')
+        cmass_pos_err = Column(mass, name='mass_pos_err', unit='M_solar')
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
-        t.add_columns([csfr, csap, csan, cmass])
+        t.add_columns([csfr, csap, csan, cmass, cmass_pos_err, cmass_neg_err])
 
         if marginalize_z:
             age_vals = np.unique(t['log(age)'])
@@ -230,6 +237,8 @@ class SFH(object):
                 sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
                 amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
                 amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
+                mass_err_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+                mass_err_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
                 binned_t.add_row((np.mean(tt['Z']),
                                   age_val,
                                   np.sum(tt['amp_nstars']),
@@ -239,6 +248,8 @@ class SFH(object):
                                   sfr_sigma_pos,
                                   sfr_sigma_neg,
                                   np.sum(tt['mass']),
+                                  mass_err_pos,
+                                  mass_err_neg,
                                   ))
             t = binned_t
 
@@ -248,18 +259,18 @@ class SFH(object):
     def mean_log_age(self):
         """Mean age of a fit, in log(age)."""
         t = self.solution_table(marginalize_z=True)
-        m = np.average(t['log(age)'],
-                       weights=t['sfr'])
+        m = np.interp(50., t['logage'],
+                      np.cumsum(t['mass']) / t['mass'].sum() * 100.)
         # estimate mean uncertainty from positive and negative error lim
-        sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+        sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
         # Use resampling to estimate uncertainty of mean
         n_boot = 1000
         boot_means = np.empty(n_boot, dtype=np.float)
         n_ages = len(t)
         for i in xrange(n_boot):
-            resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
-            mi = np.average(t['log(age)'],
-                            weights=resamp_weights)
+            resamp = sigma * np.random.randn(n_ages) + t['mass']
+            mi = np.interp(50., t['log(age)'],
+                           np.cumsum(resamp) / resamp.sum() * 100.)
             boot_means[i] = mi
         sigma_mean = np.std(boot_means)
         print "mean_log_age", m, sigma_mean
@@ -269,16 +280,16 @@ class SFH(object):
     def mean_age(self):
         t = self.solution_table(marginalize_z=True)
         age_gyr = 10. ** t['log(age)'] / 1e9
-        m = np.average(age_gyr,
-                       weights=t['sfr'])
-        sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+        m = np.interp(50., age_gyr,
+                      np.cumsum(t['mass']) / t['mass'].sum() * 100.)
+        sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
         n_boot = 1000
         boot_means = np.empty(n_boot, dtype=np.float)
         n_ages = len(t)
         for i in xrange(n_boot):
-            resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
-            mi = np.average(age_gyr,
-                            weights=resamp_weights)
+            resamp = sigma * np.random.randn(n_ages) + t['mass']
+            mi = np.interp(50., age_gyr,
+                           np.cumsum(resamp) / resamp.sum() * 100.)
             boot_means[i] = mi
         sigma_mean = np.std(boot_means)
         print "mean_age", m, sigma_mean
@@ -291,16 +302,16 @@ class SFH(object):
         mean_age_sigmas = OrderedDict()
         for z, t in sfh_tables.iteritems():
             age_gyr = 10. ** t['log(age)'] / 1e9
-            m = np.average(age_gyr,
-                           weights=t['sfr'])
-            sigma = (t['sfr_pos_err'] - t['sfr_neg_err']) / 2.
+            m = np.interp(50., age_gyr,
+                          np.cumsum(t['mass']) / t['mass'].sum() * 100.)
+            sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
             n_boot = 1000
             boot_means = np.empty(n_boot, dtype=np.float)
             n_ages = len(t)
             for i in xrange(n_boot):
-                resamp_weights = sigma * np.random.randn(n_ages) + t['sfr']
-                mi = np.average(age_gyr,
-                                weights=resamp_weights)
+                resamp = sigma * np.random.randn(n_ages) + t['mass']
+                mi = np.interp(50., age_gyr,
+                               np.cumsum(resamp) / resamp.sum() * 100.)
                 boot_means[i] = mi
             sigma_mean = np.std(boot_means)
             mean_ages[z] = m
