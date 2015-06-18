@@ -118,7 +118,7 @@ def plot_single_sfh_line(
         if log_amp:
             pos_ci = np.log10(sfh_table['sfr'][s] + pos_err)
             neg_ci = np.log10(sfh_table['sfr'][s] - neg_err)
-            neg_ci[~np.isfinite(neg_ci)] = -7  # FIXME hack for -inf clipped
+            neg_ci[~np.isfinite(neg_ci)] = -10  # FIXME hack for -inf clipped
         # print "pos_error", np.median(pos_err - amp[s])
         # print "neg", np.median(neg_err - amp[s])
         # print "fillling in error"
