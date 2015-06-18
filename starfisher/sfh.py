@@ -262,8 +262,9 @@ class SFH(object):
     def mean_log_age(self):
         """Mean age of a fit, in log(age)."""
         t = self.solution_table(marginalize_z=True)
-        m = np.interp(50., t['logage'],
-                      np.cumsum(t['mass']) / t['mass'].sum() * 100.)
+        m = np.interp(50.,
+                      np.cumsum(t['mass']) / t['mass'].sum() * 100.,
+                      t['logage'])
         # estimate mean uncertainty from positive and negative error lim
         sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
         # Use resampling to estimate uncertainty of mean
@@ -272,8 +273,9 @@ class SFH(object):
         n_ages = len(t)
         for i in xrange(n_boot):
             resamp = sigma * np.random.randn(n_ages) + t['mass']
-            mi = np.interp(50., t['log(age)'],
-                           np.cumsum(resamp) / resamp.sum() * 100.)
+            mi = np.interp(50.,
+                           np.cumsum(resamp) / resamp.sum() * 100.,
+                           t['log(age)'])
             boot_means[i] = mi
         sigma_mean = np.std(boot_means)
         print "mean_log_age", m, sigma_mean
@@ -283,16 +285,18 @@ class SFH(object):
     def mean_age(self):
         t = self.solution_table(marginalize_z=True)
         age_gyr = 10. ** t['log(age)'] / 1e9
-        m = np.interp(50., age_gyr,
-                      np.cumsum(t['mass']) / t['mass'].sum() * 100.)
+        m = np.interp(50.,
+                      np.cumsum(t['mass']) / t['mass'].sum() * 100.,
+                      age_gyr)
         sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
         n_boot = 1000
         boot_means = np.empty(n_boot, dtype=np.float)
         n_ages = len(t)
         for i in xrange(n_boot):
             resamp = sigma * np.random.randn(n_ages) + t['mass']
-            mi = np.interp(50., age_gyr,
-                           np.cumsum(resamp) / resamp.sum() * 100.)
+            mi = np.interp(50.,
+                           np.cumsum(resamp) / resamp.sum() * 100.,
+                           age_gyr)
             boot_means[i] = mi
         sigma_mean = np.std(boot_means)
         print "mean_age", m, sigma_mean
@@ -305,16 +309,18 @@ class SFH(object):
         mean_age_sigmas = OrderedDict()
         for z, t in sfh_tables.iteritems():
             age_gyr = 10. ** t['log(age)'] / 1e9
-            m = np.interp(50., age_gyr,
-                          np.cumsum(t['mass']) / t['mass'].sum() * 100.)
+            m = np.interp(50.,
+                          np.cumsum(t['mass']) / t['mass'].sum() * 100.,
+                          age_gyr)
             sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
             n_boot = 1000
             boot_means = np.empty(n_boot, dtype=np.float)
             n_ages = len(t)
             for i in xrange(n_boot):
                 resamp = sigma * np.random.randn(n_ages) + t['mass']
-                mi = np.interp(50., age_gyr,
-                               np.cumsum(resamp) / resamp.sum() * 100.)
+                mi = np.interp(50.,
+                               np.cumsum(resamp) / resamp.sum() * 100.,
+                               age_gyr)
                 boot_means[i] = mi
             sigma_mean = np.std(boot_means)
             mean_ages[z] = m
