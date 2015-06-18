@@ -198,6 +198,9 @@ class SFH(object):
                         avgmass=1.628, marginalize_z=False):
         # Renormalize to SFR (Msun/yr)
         # (Amps in the SFH file have units Nstars.)
+        print len(t['amp_nstars_p'])
+        print len(t['amp_nstars'])
+        print len(dt)
         ep = (t['amp_nstars_p'] - t['amp_nstars']) * avgmass / dt
         en = (t['amp_nstars'] - t['amp_nstars_n']) * avgmass / dt
         sfr = t['amp_nstars'] * avgmass / dt
