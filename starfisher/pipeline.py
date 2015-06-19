@@ -63,6 +63,7 @@ class PipelineBase(object):
 
     def __init__(self, **kwargs):
         self.root_dir = kwargs.pop('root_dir')
+        self.n_synth_cpu = kwargs.pop('n_synth_cpu', 1)
 
         # StarFISH product directories
         self.isoc_dir = os.path.join(self.root_dir, 'isoc')
@@ -109,9 +110,9 @@ class PipelineBase(object):
                            mass_span=(0.08, 150.),
                            nstars=10000000)
         existing_synth = len(glob(
-            os.path.join(full_synth_dir, "z*"))) == 0
-        if existing_synth:
-            self.synth.run_synth(n_cpu=4, clean=False)
+            os.path.join(full_synth_dir, "z*"))) > 0
+        if not existing_synth:
+            self.synth.run_synth(n_cpu=self.n_synth_cpu, clean=False)
 
     @abc.abstractmethod
     def mask_planes(self):
