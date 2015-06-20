@@ -154,6 +154,7 @@ class BaseLockfile(object):
         # Lockfile has just the isochrones needed in it; ordered by group
         sel = self._build_isochrone_selector()
         lockdata = self._index[sel]
+        isofiledata = self.isofile[sel]
 
         t = Table(lockdata)
         t.write(self.full_lock_path,
@@ -163,10 +164,9 @@ class BaseLockfile(object):
                 formats={"group": "%03i", "path": "%s", "name": "%s"})
 
         # Also write the edited isofile
-        # FIXME verify this
-        self.isofile.write(self.full_synth_isofile_path,
-                           format='ascii.no_header',
-                           delimiter=' ')
+        isofiledata.write(self.full_synth_isofile_path,
+                          format='ascii.no_header',
+                          delimiter=' ')
 
     def _build_isochrone_selector(self):
         sel = []
