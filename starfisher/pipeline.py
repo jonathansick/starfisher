@@ -46,7 +46,7 @@ class DatasetBase(object):
 
     def __init__(self, **kwargs):
         print "DatasetBase", kwargs
-        super(DatasetBase, self).__init__(**kwargs)
+        super(DatasetBase, self).__init__()
 
     @abc.abstractmethod
     def get_phot(self, band):
@@ -251,13 +251,13 @@ class PipelineBase(object):
         ax.set_ylim(*ylim)
 
 
-class IsochroneSetBase():
+class IsochroneSetBase(object):
     """Abstract baseclass for pipeline components that obtain isochrones."""
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
         print "IsochroneSetBase", kwargs
-        super(IsochroneSetBase, self).__init__(**kwargs)
+        super(IsochroneSetBase, self).__init__()
 
     @abc.abstractproperty
     def bands(self):
@@ -290,7 +290,7 @@ class PlaneBase(object):
     def __init__(self, **kwargs):
         self._sim_hess_planes = {}  # cache
         print "PlaneBase", kwargs
-        super(PlaneBase, self).__init__(**kwargs)
+        super(PlaneBase, self).__init__()
 
     @abc.abstractproperty
     def planes(self):
@@ -314,7 +314,7 @@ class LockBase(object):
 
     def __init__(self, **kwargs):
         print "LockBase", kwargs
-        super(LockBase, self).__init__(**kwargs)
+        super(LockBase, self).__init__()
 
     @abc.abstractmethod
     def build_lockfile(self):
@@ -326,7 +326,7 @@ class CrowdingBase(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
-        super(CrowdingBase, self).__init__(**kwargs)
+        super(CrowdingBase, self).__init__()
 
     @abc.abstractmethod
     def build_crowding(self):
