@@ -48,15 +48,21 @@ class BaseLockfile(object):
         names = []
         groups = np.unique(self._index['group'])
         groups.sort()
-        print self._index['group']
-        print groups
         for g in groups:
             if g == 0:
                 continue
             idx = np.where(self._index['group'] == g)[0][0]
             names.append(self._index['name'][idx])
-        print "There are {0:d} active groups".format(len(names))
         return names
+
+    @property
+    def group_isochrone_count(self):
+        """Number of isochrones in each group."""
+        nisocs = []
+        for name in self.active_groups:
+            idx = np.where(self._index['group'] == name)[0]
+            nisocs.append(len(idx))
+        return np.array(nisocs)
 
     @property
     def group_logages(self):
