@@ -173,7 +173,9 @@ class Synth(object):
             If ``True`` then existing synth outputs are removed before
             running ``synth``.
         """
-        synth_paths = self._write(n_cpu, include_unlocked)
+        synth_paths = self._write(n_cpu=n_cpu,
+                                  include_unlocked=include_unlocked,
+                                  synth_input_path=None)
         if clean:
             self._clean()
 
@@ -189,8 +191,11 @@ class Synth(object):
         if n_cpu > 1:
             pool.close()
 
-    def _write(self, n_cpu, include_unlocked):
+    def _write(self, n_cpu=1, include_unlocked=False, synth_input_path=None):
         """Write the `synth` input files."""
+        if synth_input_path is not None:
+            assert n_cpu == 1
+
         # Prep lock file and edited isofile
         self.lockfile.write(include_unlocked=include_unlocked)
         if n_cpu > 1:
@@ -252,8 +257,11 @@ class Synth(object):
             lines.append("%.2f" % self.fbinary)
 
             txt = "\n".join(lines)
-            synth_path = os.path.join(self.synth_dir,
-                                      "synth.{0:d}.txt".format(i))
+            if synth_input_path is None:
+                synth_path = os.path.join(self.synth_dir,
+                                          "synth.{0:d}.txt".format(i))
+            else:
+                synth_path = synth_input_path
             with open(os.path.join(starfish_dir, synth_path), 'w') as f:
                 f.write(txt)
             synthfiles.append(synth_path)
