@@ -6,7 +6,10 @@ Create artifical stellar catalogs with ``testpop``.
 import os
 import subprocess
 
+import numpy as np
+
 from .pathutils import starfish_dir, EnterStarFishDirectory
+from .pipeline import DatasetBase
 
 
 class TestPop(object):
@@ -74,6 +77,9 @@ class TestPop(object):
         with EnterStarFishDirectory():
             subprocess.call(cmd, shell=True)
 
+        # Create a dataset instance with the testpop catalogs
+        self.dataset = TestPopDataset(self.name, self.synth)
+
     def _write_config(self, path):
         lines = []
 
@@ -117,3 +123,29 @@ class TestPop(object):
         config_path = os.path.join(self.synth_dir, path)
         with open(os.path.join(starfish_dir, config_path), 'w') as f:
             f.write(txt)
+
+
+class TestPopDataset(DatasetBase):
+    """A Dataset for testpop-derived catalogs."""
+    def __init__(self, prefix, synth):
+        suffixes = [cmd.suffix for cmd in synth._cmd]
+        self._datasets = {}
+        for sfx in suffixes:
+            self._datasets[sfx] = self._load_catalog(sfx)
+        super(TestPopDataset, self).__init__()
+
+    def _load_catalog(self, prefix, suffix):
+        path = os.path.join(starfish_dir, 'testpop',
+                            '.'.join((prefix, suffix)))
+        # Read the dataset
+        dtype = [('mag_x', float), ('mag_y', float),
+                 ('delta_x', float), ('delta_y', float)]
+        data = np.loadtxt(path, dtype=np.dtype(dtype))
+        return data
+
+    def write_phot(self, x_mag, y_mag, data_root, suffix):
+        """write_phot overrides the normal execution to write
+        out the pre-populated dataset from testpop.
+        """
+        data = self._datasets[suffix]
+        data.write('.'.join(data_root, suffix))
