@@ -64,6 +64,7 @@ class PipelineBase(object):
     def __init__(self, **kwargs):
         self.root_dir = kwargs.pop('root_dir')
         self.n_synth_cpu = kwargs.pop('n_synth_cpu', 1)
+        self.synth_config_only = kwargs.pop('synth_config_only', False)
 
         # StarFISH product directories
         self.isoc_dir = os.path.join(self.root_dir, 'isoc')
@@ -93,9 +94,14 @@ class PipelineBase(object):
         self.build_crowding()
         self.build_extinction()
         self.mask_planes()  # mask planes based on completeness cuts
-        self.run_synth()
+        if self.synth_config_only:
+            self.run_synth(n_cpu=1,
+                           config_only=self.synth_config_only)
+        else:
+            self.run_synth(n_cpu=self.n_synth_cpu,
+                           config_only=self.synth_config_only)
 
-    def run_synth(self):
+    def run_synth(self, n_cpu=1, config_only=False):
         full_synth_dir = os.path.join(STARFISH, self.synth_dir)
 
         self.synth = Synth(self.synth_dir,
@@ -111,8 +117,9 @@ class PipelineBase(object):
                            nstars=10000000)
         existing_synth = len(glob(
             os.path.join(full_synth_dir, "z*"))) > 0
-        if not existing_synth:
-            self.synth.run_synth(n_cpu=self.n_synth_cpu, clean=False)
+        if not config_only:
+            if not existing_synth:
+                self.synth.run_synth(n_cpu=n_cpu, clean=False)
 
     @abc.abstractmethod
     def mask_planes(self):
