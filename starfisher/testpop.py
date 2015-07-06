@@ -90,6 +90,7 @@ class TestPop(object):
         lines.append(str(int(self.use_lockfile)))
         lines.append(str(int(self.n_stars)))
         lines.append('{0:.2f}'.format(self.delta_dmod))
+        lines.append('{0:.2f}'.format(self.fext))
         lines.append('{0:.2f}'.format(self.gamma))
         lines.append('{0:.2f}'.format(self.fbinary))
         if self.n_star_amp:
@@ -111,10 +112,11 @@ class TestPop(object):
         # niso is the number of isochrones in the group (if lockflag=0, then
         # niso is not read).
 
-        fmt = '{amp:7.4f} {z_metal:5.3f} {log_age:5.2} {niso:d}'
+        fmt = '{amp:7.4f} {z_metal:5.3f} {log_age:5.2f} {niso:d}'
         group_metallicities = self.synth.lockfile.group_metallicities
         group_logages = self.synth.lockfile.group_logages
         group_nisoc = self.synth.lockfile.group_isochrone_count
+        print "group_nisoc", group_nisoc
         for i in xrange(self.sfh_amps.shape[0]):
             l = fmt.format(amp=self.sfh_amps[i],
                            z_metal=group_metallicities[i],

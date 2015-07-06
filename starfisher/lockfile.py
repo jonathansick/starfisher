@@ -60,7 +60,8 @@ class BaseLockfile(object):
         """Number of isochrones in each group."""
         nisocs = []
         for name in self.active_groups:
-            idx = np.where(self._index['group'] == name)[0]
+            idx = np.where(self._index['name'] == name)[0]
+            print name, idx
             nisocs.append(len(idx))
         return np.array(nisocs)
 
