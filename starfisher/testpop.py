@@ -80,7 +80,7 @@ class TestPop(object):
         # Create a dataset instance with the testpop catalogs
         self.dataset = TestPopDataset(self.name, self.synth)
 
-    def _write_config(self, path):
+    def _write_config(self, config_path):
         lines = []
 
         lines.append(self.name)
@@ -111,16 +111,15 @@ class TestPop(object):
         fmt = '{amp:7.4f} {z_metal:5.3f} {log_age:5.2} {niso:d}'
         group_metallicities = self.synth.lockfile.group_metallicities
         group_logages = self.synth.lockfile.group_logages
-        group_nisoc = self.synth.lockfile.group_isochone_count
-        for i in xrange(self.sfh_table.shape[0]):
+        group_nisoc = self.synth.lockfile.group_isochrone_count
+        for i in xrange(self.sfh_amps.shape[0]):
             l = fmt.format(amp=self.sfh_amps[i],
                            z_metal=group_metallicities[i],
                            log_age=group_logages[i],
                            niso=group_nisoc[i])
             lines.append(l)
 
-        txt = 'n'.join(lines)
-        config_path = os.path.join(self.synth_dir, path)
+        txt = 'n'.join(lines) + '\n'
         with open(os.path.join(starfish_dir, config_path), 'w') as f:
             f.write(txt)
 
