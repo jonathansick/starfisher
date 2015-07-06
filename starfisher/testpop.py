@@ -148,3 +148,13 @@ class TestPopDataset(DatasetBase):
         """
         data = self._datasets[suffix]
         data.write('.'.join(data_root, suffix))
+
+    def get_phot(self, band):
+        # FIXME check implementation
+        print "TestPopDataset.get_phot() Not implemented"
+        return None
+        # if not isinstance(band, basestring):
+        #     band1, band2 = band
+        #     return self._phat_data[band1] - self._phat_data[band2]
+        # else:
+        #     return self._phat_data[band]
