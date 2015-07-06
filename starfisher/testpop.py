@@ -132,15 +132,15 @@ class TestPop(object):
 class TestPopDataset(DatasetBase):
     """A Dataset for testpop-derived catalogs."""
     def __init__(self, prefix, synth):
-        suffixes = [cmd.suffix for cmd in synth._cmd]
+        suffixes = [cmd.suffix for cmd in synth._cmds]
         self._datasets = {}
         for sfx in suffixes:
-            self._datasets[sfx] = self._load_catalog(sfx)
+            self._datasets[sfx] = self._load_catalog(prefix, sfx)
         super(TestPopDataset, self).__init__()
 
     def _load_catalog(self, prefix, suffix):
         path = os.path.join(starfish_dir, 'testpop',
-                            '.'.join((prefix, suffix)))
+                            ''.join((prefix, suffix)))
         # Read the dataset
         dtype = [('mag_x', float), ('mag_y', float),
                  ('delta_x', float), ('delta_y', float)]
