@@ -73,8 +73,11 @@ class TestPop(object):
         self._write_config(config_path)
 
         # Run testpop
-        cmd = "./testpop/testpop < %s" % config_path
-        with EnterStarFishDirectory():
+        print "configpath is {0}".format(config_path)
+        cmd = "./testpop < %s" % os.path.basename(config_path)
+        with EnterStarFishDirectory(dirname='testpop'):
+            print cmd
+            print 'cwd:', os.getcwd()
             subprocess.call(cmd, shell=True)
 
         # Create a dataset instance with the testpop catalogs
@@ -119,7 +122,7 @@ class TestPop(object):
                            niso=group_nisoc[i])
             lines.append(l)
 
-        txt = 'n'.join(lines) + '\n'
+        txt = '\n'.join(lines) + '\n'
         with open(os.path.join(starfish_dir, config_path), 'w') as f:
             f.write(txt)
 
