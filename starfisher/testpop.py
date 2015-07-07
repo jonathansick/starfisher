@@ -152,7 +152,14 @@ class TestPopDataset(DatasetBase):
         out the pre-populated dataset from testpop.
         """
         data = self._datasets[suffix]
-        data.write('.'.join(data_root, suffix))
+        phot_path = os.path.join(starfish_dir,
+                                 ''.join((data_root, suffix)))
+        phot_dir = os.path.dirname(phot_path)
+        if not os.path.exists(phot_dir):
+            os.makedirs(phot_dir)
+        np.savetxt(phot_path,
+                   data,
+                   fmt='%.4f')
 
     def get_phot(self, band):
         # FIXME check implementation
