@@ -129,8 +129,10 @@ class PipelineBase(object):
     def hold_template(self):
         return self.lockfile.empty_hold
 
-    def fit(self, fit_key, plane_keys, dataset, redo=False, hold=None):
-        fit_dir = os.path.join(self.root_dir, fit_key)
+    def fit(self, fit_key, plane_keys, dataset, fit_dir=None,
+            redo=False, hold=None):
+        if fit_dir is None:
+            fit_dir = os.path.join(self.root_dir, fit_key)
         data_root = os.path.join(fit_dir, "phot.")
         planes = []
         for plane_key in plane_keys:
