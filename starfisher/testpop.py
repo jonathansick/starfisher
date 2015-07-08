@@ -116,7 +116,6 @@ class TestPop(object):
         group_metallicities = self.synth.lockfile.group_metallicities
         group_logages = self.synth.lockfile.group_logages
         group_nisoc = self.synth.lockfile.group_isochrone_count
-        print "group_nisoc", group_nisoc
         for i in xrange(self.sfh_amps.shape[0]):
             l = fmt.format(amp=self.sfh_amps[i],
                            z_metal=group_metallicities[i],
@@ -132,10 +131,12 @@ class TestPop(object):
 class TestPopDataset(DatasetBase):
     """A Dataset for testpop-derived catalogs."""
     def __init__(self, prefix, synth):
-        suffixes = [cmd.suffix for cmd in synth._cmds]
         self._datasets = {}
-        for sfx in suffixes:
-            self._datasets[sfx] = self._load_catalog(prefix, sfx)
+        for plane in synth._cmds:
+            dataset = self._load_catalog(prefix, plane.suffix)
+            record = {'dataset': dataset, 'x_mag': plane.x_mag,
+                      'y_mag': plane.y_mag}
+            self._datasets[plane.suffix] = record
         super(TestPopDataset, self).__init__()
 
     def _load_catalog(self, prefix, suffix):
@@ -151,7 +152,7 @@ class TestPopDataset(DatasetBase):
         """write_phot overrides the normal execution to write
         out the pre-populated dataset from testpop.
         """
-        data = self._datasets[suffix]
+        data = self._datasets[suffix]['dataset']
         phot_path = os.path.join(starfish_dir,
                                  ''.join((data_root, suffix)))
         phot_dir = os.path.dirname(phot_path)
@@ -162,11 +163,9 @@ class TestPopDataset(DatasetBase):
                    fmt='%.4f')
 
     def get_phot(self, band):
-        # FIXME check implementation
-        print "TestPopDataset.get_phot() Not implemented"
-        return None
-        # if not isinstance(band, basestring):
-        #     band1, band2 = band
-        #     return self._phat_data[band1] - self._phat_data[band2]
-        # else:
-        #     return self._phat_data[band]
+        for suffix, rec in self._datasets.iteritems():
+            if band == rec['x_mag']:
+                return rec['dataset']['mag_x']
+            elif band == rec['y_mag']:
+                return rec['dataset']['mag_y']
+        print "Could not find photometry for", band
