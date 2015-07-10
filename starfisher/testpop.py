@@ -127,6 +127,43 @@ class TestPop(object):
         with open(os.path.join(starfish_dir, config_path), 'w') as f:
             f.write(txt)
 
+    @property
+    def sfh_table(self):
+        """Numpy record array of the model star formation history."""
+        n = len(self.sfh_amps)
+        dtype = [('log(age)', np.float), ('Z', np.float), ('sfr', np.float)]
+        a = np.empty(n, dtype=np.dtype(dtype))
+        a['log(age)'][:] = self.synth.lockfile.group_logages
+        a['Z'][:] = self.synth.lockfile.group_metallicities
+        a['sfr'][:] = self.sfh_amps
+        return a
+
+    @property
+    def sfh_table_marginalized(self):
+        sfh_table = self.sfh_table
+        # t = np.empty(len(sfh_table), dtype=sfh_table.dtype)
+        # sfh_table.read_direct(t, source_sel=None, dest_sel=None)
+        age_vals = np.unique(sfh_table['log(age)'])
+        s = np.argsort(age_vals)
+        age_vals = age_vals[s]
+        A = []
+        sfr = []
+        for i, age_val in enumerate(age_vals):
+            tt = sfh_table[sfh_table['log(age)'] == age_val]
+            bin_sfr = np.sum(tt['sfr'])
+            A.append(age_val)
+            sfr.append(bin_sfr)
+        srt = np.argsort(A)
+        A = np.array(A)
+        sfr = np.array(sfr)
+        A = A[srt]
+        sfr = sfr[srt]
+        new_sfh_table = np.empty(len(A), dtype=np.dtype([('log(age)', float),
+                                                         ('sfr', float)]))
+        new_sfh_table['log(age)'][:] = A
+        new_sfh_table['sfr'][:] = sfr
+        return new_sfh_table
+
 
 class TestPopDataset(DatasetBase):
     """A Dataset for testpop-derived catalogs."""
