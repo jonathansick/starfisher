@@ -138,7 +138,7 @@ class TestPop(object):
         a['Z'][:] = self.synth.lockfile.group_metallicities
         a['sfr'][:] = self.sfh_amps
         a['dt'][:] = self.synth.lockfile.group_dt
-        a['sfr_msolar_yr'][:] = a['sfr_msolar_yr'] * 1.628 / a['dt']
+        a['sfr_msolar_yr'][:] = a['sfr'] * self.n_stars * 1.628 / a['dt']
         return a
 
     @property
@@ -151,7 +151,7 @@ class TestPop(object):
         age_vals = age_vals[s]
         A = []
         sfr = []
-        bin_sfr_msolar_yr = []
+        sfr_msolar_yr = []
         dt = []
         for i, age_val in enumerate(age_vals):
             tt = sfh_table[sfh_table['log(age)'] == age_val]
@@ -159,18 +159,21 @@ class TestPop(object):
             bin_sfr_msolar_yr = np.sum(tt['sfr_msolar_yr'])
             A.append(age_val)
             sfr.append(bin_sfr)
-            dt.append(dt)
+            dt.append(tt['dt'][0])  # assume all metallicity tracks same dt
+            sfr_msolar_yr.append(bin_sfr_msolar_yr)
         srt = np.argsort(A)
         A = np.array(A)
         sfr = np.array(sfr)
-        sfr_msolar_yr = np.array(bin_sfr_msolar_yr)
+        sfr_msolar_yr = np.array(sfr_msolar_yr)
         dt = np.array(dt)
         A = A[srt]
         sfr = sfr[srt]
         dt = dt[srt]
-        new_sfh_table = np.empty(len(A), dtype=np.dtype([('log(age)', float),
-                                                         ('sfr', float),
-                                                         ('dt', float)]))
+        new_sfh_table = np.empty(len(A),
+                                 dtype=np.dtype([('log(age)', float),
+                                                 ('sfr', float),
+                                                 ('dt', float),
+                                                 ('sfr_msolar_yr', float)]))
         new_sfh_table['log(age)'][:] = A
         new_sfh_table['sfr'][:] = sfr
         new_sfh_table['sfr_msolar_yr'][:] = sfr_msolar_yr
