@@ -132,12 +132,13 @@ class TestPop(object):
         """Numpy record array of the model star formation history."""
         n = len(self.sfh_amps)
         dtype = [('log(age)', np.float), ('Z', np.float), ('sfr', np.float),
-                 ('dt', np.float)]
+                 ('dt', np.float), ('sfr_msolar_yr', np.float)]
         a = np.empty(n, dtype=np.dtype(dtype))
         a['log(age)'][:] = self.synth.lockfile.group_logages
         a['Z'][:] = self.synth.lockfile.group_metallicities
         a['sfr'][:] = self.sfh_amps
-        a['dt'][:] = self.lockfile.group_dt
+        a['dt'][:] = self.synth.lockfile.group_dt
+        a['sfr_msolar_yr'][:] = a['sfr_msolar_yr'] * 1.628 / a['dt']
         return a
 
     @property
@@ -150,16 +151,19 @@ class TestPop(object):
         age_vals = age_vals[s]
         A = []
         sfr = []
+        bin_sfr_msolar_yr = []
         dt = []
         for i, age_val in enumerate(age_vals):
             tt = sfh_table[sfh_table['log(age)'] == age_val]
             bin_sfr = np.sum(tt['sfr'])
+            bin_sfr_msolar_yr = np.sum(tt['sfr_msolar_yr'])
             A.append(age_val)
             sfr.append(bin_sfr)
             dt.append(dt)
         srt = np.argsort(A)
         A = np.array(A)
         sfr = np.array(sfr)
+        sfr_msolar_yr = np.array(bin_sfr_msolar_yr)
         dt = np.array(dt)
         A = A[srt]
         sfr = sfr[srt]
@@ -169,6 +173,7 @@ class TestPop(object):
                                                          ('dt', float)]))
         new_sfh_table['log(age)'][:] = A
         new_sfh_table['sfr'][:] = sfr
+        new_sfh_table['sfr_msolar_yr'][:] = sfr_msolar_yr
         new_sfh_table['dt'][:] = dt
 
         return new_sfh_table
