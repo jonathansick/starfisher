@@ -131,11 +131,13 @@ class TestPop(object):
     def sfh_table(self):
         """Numpy record array of the model star formation history."""
         n = len(self.sfh_amps)
-        dtype = [('log(age)', np.float), ('Z', np.float), ('sfr', np.float)]
+        dtype = [('log(age)', np.float), ('Z', np.float), ('sfr', np.float),
+                 ('dt', np.float)]
         a = np.empty(n, dtype=np.dtype(dtype))
         a['log(age)'][:] = self.synth.lockfile.group_logages
         a['Z'][:] = self.synth.lockfile.group_metallicities
         a['sfr'][:] = self.sfh_amps
+        a['dt'][:] = self.lockfile.group_dt
         return a
 
     @property
@@ -148,20 +150,27 @@ class TestPop(object):
         age_vals = age_vals[s]
         A = []
         sfr = []
+        dt = []
         for i, age_val in enumerate(age_vals):
             tt = sfh_table[sfh_table['log(age)'] == age_val]
             bin_sfr = np.sum(tt['sfr'])
             A.append(age_val)
             sfr.append(bin_sfr)
+            dt.append(dt)
         srt = np.argsort(A)
         A = np.array(A)
         sfr = np.array(sfr)
+        dt = np.array(dt)
         A = A[srt]
         sfr = sfr[srt]
+        dt = dt[srt]
         new_sfh_table = np.empty(len(A), dtype=np.dtype([('log(age)', float),
-                                                         ('sfr', float)]))
+                                                         ('sfr', float),
+                                                         ('dt', float)]))
         new_sfh_table['log(age)'][:] = A
         new_sfh_table['sfr'][:] = sfr
+        new_sfh_table['dt'][:] = dt
+
         return new_sfh_table
 
 
