@@ -132,13 +132,16 @@ class TestPop(object):
         """Numpy record array of the model star formation history."""
         n = len(self.sfh_amps)
         dtype = [('log(age)', np.float), ('Z', np.float), ('sfr', np.float),
-                 ('dt', np.float), ('sfr_msolar_yr', np.float)]
+                 ('dt', np.float), ('sfr_msolar_yr', np.float),
+                 ('mass', np.float)]
         a = np.empty(n, dtype=np.dtype(dtype))
         a['log(age)'][:] = self.synth.lockfile.group_logages
         a['Z'][:] = self.synth.lockfile.group_metallicities
         a['sfr'][:] = self.sfh_amps
+        # FIXME generalize for other IMF slopes
         a['dt'][:] = self.synth.lockfile.group_dt
         a['sfr_msolar_yr'][:] = a['sfr'] * self.n_stars * 1.628 / a['dt']
+        a['mass'][:] = a['sfr'] * self.n_stars * 1.628  # M_sun born in bin
         return a
 
     @property
@@ -153,31 +156,38 @@ class TestPop(object):
         sfr = []
         sfr_msolar_yr = []
         dt = []
+        mass = []
         for i, age_val in enumerate(age_vals):
             tt = sfh_table[sfh_table['log(age)'] == age_val]
             bin_sfr = np.sum(tt['sfr'])
             bin_sfr_msolar_yr = np.sum(tt['sfr_msolar_yr'])
+            bin_mass = np.sum(tt['mass'])
             A.append(age_val)
             sfr.append(bin_sfr)
             dt.append(tt['dt'][0])  # assume all metallicity tracks same dt
             sfr_msolar_yr.append(bin_sfr_msolar_yr)
+            mass.append(bin_mass)
         srt = np.argsort(A)
         A = np.array(A)
         sfr = np.array(sfr)
         sfr_msolar_yr = np.array(sfr_msolar_yr)
+        mass = np.array(mass)
         dt = np.array(dt)
         A = A[srt]
         sfr = sfr[srt]
         dt = dt[srt]
+        mass = mass[srt]
         new_sfh_table = np.empty(len(A),
                                  dtype=np.dtype([('log(age)', float),
                                                  ('sfr', float),
                                                  ('dt', float),
-                                                 ('sfr_msolar_yr', float)]))
+                                                 ('sfr_msolar_yr', float),
+                                                 ('mass', float)]))
         new_sfh_table['log(age)'][:] = A
         new_sfh_table['sfr'][:] = sfr
         new_sfh_table['sfr_msolar_yr'][:] = sfr_msolar_yr
         new_sfh_table['dt'][:] = dt
+        new_sfh_table['mass'][:] = mass
 
         return new_sfh_table
 
