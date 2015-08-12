@@ -47,10 +47,14 @@ class ColorPlane(object):
         latex formatting.
     dpix : float
         Size of CMD pixels (in magnitudes).
+    d_xticks : float
+        Spacing between axis ticks on the x-axis.
+    d_yticks : float
+        Spacing between axis ticks on the y-axis.
     """
     def __init__(self, x_mag, y_mag, x_span, y_span, y_crowding_max,
                  suffix='.plane', x_label="x", y_label="y", dpix=0.05,
-                 nx=None, ny=None):
+                 nx=None, ny=None, d_xticks=None, d_yticks=None):
         super(ColorPlane, self).__init__()
         if isinstance(y_mag, basestring):
             self._is_cmd = True
@@ -65,6 +69,8 @@ class ColorPlane(object):
         self.x_label = x_label
         self.y_label = y_label
         self.dpix = dpix
+        self.d_xticks = d_xticks
+        self.d_yticks = d_yticks
         self._nx = nx
         self._ny = ny
 
