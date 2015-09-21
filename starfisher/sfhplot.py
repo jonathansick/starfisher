@@ -93,7 +93,8 @@ def plot_single_sfh_line(
         color='dodgerblue',
         label=None,
         plot_errors=False,
-        hatch_errors=None):
+        hatch_errors=None,
+        drawstyle='default'):
     amp = sfh_table[amp_key]
     if log_amp:
         amp = np.log10(amp)
@@ -113,7 +114,8 @@ def plot_single_sfh_line(
     else:
         s = np.arange(len(sfh_table), dtype=int)  # dummy index
 
-    ax.plot(age[s], amp[s], ls='-', lw=2.5, c=color, label=label)
+    ax.plot(age[s], amp[s], ls='-', lw=2.5,
+            c=color, drawstyle=drawstyle, label=label)
 
     if plot_errors and amp_key == 'sfr':
         pos_err = sfh_table['sfr_pos_err'][s]
