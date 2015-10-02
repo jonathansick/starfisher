@@ -147,22 +147,26 @@ class TestPop(object):
     @property
     def sfh_table_marginalized(self):
         sfh_table = self.sfh_table
-        # t = np.empty(len(sfh_table), dtype=sfh_table.dtype)
-        # sfh_table.read_direct(t, source_sel=None, dest_sel=None)
-        age_vals = np.unique(sfh_table['log(age)'])
-        s = np.argsort(age_vals)
-        age_vals = age_vals[s]
+
+        # Uniqueness/comparisons are made against rounded integer myr ages
+        rounded_ages = np.empty(len(sfh_table), dtype=np.int)
+        np.around(10. ** (sfh_table['log(age)'] - 6.),
+                  decimals=0, out=rounded_ages)
+        unique_rounded_ages = np.unique(rounded_ages)
+        s = np.argsort(unique_rounded_ages)
+        unique_rounded_ages = unique_rounded_ages[s]
+
         A = []
         sfr = []
         sfr_msolar_yr = []
         dt = []
         mass = []
-        for i, age_val in enumerate(age_vals):
-            tt = sfh_table[sfh_table['log(age)'] == age_val]
+        for i, age_token in enumerate(unique_rounded_ages):
+            tt = sfh_table[rounded_ages == age_token]
             bin_sfr = np.sum(tt['sfr'])
             bin_sfr_msolar_yr = np.sum(tt['sfr_msolar_yr'])
             bin_mass = np.sum(tt['mass'])
-            A.append(age_val)
+            A.append(tt['log(age)'][0])
             sfr.append(bin_sfr)
             dt.append(tt['dt'][0])  # assume all metallicity tracks same dt
             sfr_msolar_yr.append(bin_sfr_msolar_yr)
