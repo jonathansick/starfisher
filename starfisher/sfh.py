@@ -231,35 +231,45 @@ class SFH(object):
                        dt])
 
         if marginalize_z:
-            age_vals = np.unique(t['log(age)'])
-            s = np.argsort(age_vals)
-            age_vals = age_vals[s]
-            binned_t = Table(names=t.colnames)
-            for i, age_val in enumerate(age_vals):
-                tt = t[t['log(age)'] == age_val]
-                # error propagation
-                sfr_sigma_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
-                sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
-                amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
-                amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
-                mass_err_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
-                mass_err_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
-                binned_t.add_row((np.mean(tt['Z']),
-                                  age_val,
-                                  np.sum(tt['amp_nstars']),
-                                  amp_sigma_neg,
-                                  amp_sigma_pos,
-                                  np.sum(tt['sfr']),
-                                  sfr_sigma_pos,
-                                  sfr_sigma_neg,
-                                  np.sum(tt['mass']),
-                                  mass_err_pos,
-                                  mass_err_neg,
-                                  np.mean(tt['dt']),
-                                  ))
-            t = binned_t
+            t = self._marginalize_z(t)
 
         return t
+
+    def _marginalize_z(self, t):
+        """Marginalize SFH table across metallicities."""
+        # Uniqueness/comparisons are made against rounded integer myr ages
+        rounded_ages = np.empty(len(t), dtype=np.int)
+        np.around(10. ** (t['log(age)'] - 6.),
+                  decimals=0, out=rounded_ages)
+        unique_rounded_ages = np.unique(rounded_ages)
+        s = np.argsort(unique_rounded_ages)
+        unique_rounded_ages = unique_rounded_ages[s]
+
+        binned_t = Table(names=t.colnames)
+        for i, age_token in enumerate(unique_rounded_ages):
+            tt = t[rounded_ages == age_token]
+            # error propagation
+            sfr_sigma_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+            sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
+            amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
+            amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
+            mass_err_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+            mass_err_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
+            binned_t.add_row((np.mean(tt['Z']),
+                              tt['log(age)'][0],
+                              np.sum(tt['amp_nstars']),
+                              amp_sigma_neg,
+                              amp_sigma_pos,
+                              np.sum(tt['sfr']),
+                              sfr_sigma_pos,
+                              sfr_sigma_neg,
+                              np.sum(tt['mass']),
+                              mass_err_pos,
+                              mass_err_neg,
+                              np.mean(tt['dt']),
+                              ))
+        binned_t = Table(names=t.colnames)
+        return binned_t
 
     @property
     def mean_log_age(self):
