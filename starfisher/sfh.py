@@ -268,7 +268,6 @@ class SFH(object):
                               mass_err_neg,
                               np.mean(tt['dt']),
                               ))
-        binned_t = Table(names=t.colnames)
         return binned_t
 
     @property
