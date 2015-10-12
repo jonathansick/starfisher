@@ -221,9 +221,10 @@ class SFH(object):
         mass_err_neg[s] = mass[s]
 
         cmass = Column(mass, name='mass', unit='M_solar')
-        # FIXME
-        cmass_neg_err = Column(mass, name='mass_neg_err', unit='M_solar')
-        cmass_pos_err = Column(mass, name='mass_pos_err', unit='M_solar')
+        cmass_neg_err = Column(mass_err_neg,
+                               name='mass_neg_err', unit='M_solar')
+        cmass_pos_err = Column(mass_err_pos,
+                               name='mass_pos_err', unit='M_solar')
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
