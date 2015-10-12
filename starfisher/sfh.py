@@ -221,6 +221,7 @@ class SFH(object):
         mass_err_neg[s] = mass[s]
 
         cmass = Column(mass, name='mass', unit='M_solar')
+        # FIXME
         cmass_neg_err = Column(mass, name='mass_neg_err', unit='M_solar')
         cmass_pos_err = Column(mass, name='mass_pos_err', unit='M_solar')
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
@@ -231,44 +232,9 @@ class SFH(object):
                        dt])
 
         if marginalize_z:
-            t = self._marginalize_z(t)
+            t = marginalize_sfh_metallicity(t)
 
         return t
-
-    def _marginalize_z(self, t):
-        """Marginalize SFH table across metallicities."""
-        # Uniqueness/comparisons are made against rounded integer myr ages
-        rounded_ages = np.empty(len(t), dtype=np.int)
-        np.around(10. ** (t['log(age)'] - 6.),
-                  decimals=0, out=rounded_ages)
-        unique_rounded_ages = np.unique(rounded_ages)
-        s = np.argsort(unique_rounded_ages)
-        unique_rounded_ages = unique_rounded_ages[s]
-
-        binned_t = Table(names=t.colnames)
-        for i, age_token in enumerate(unique_rounded_ages):
-            tt = t[rounded_ages == age_token]
-            # error propagation
-            sfr_sigma_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
-            sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
-            amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
-            amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
-            mass_err_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
-            mass_err_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
-            binned_t.add_row((np.mean(tt['Z']),
-                              tt['log(age)'][0],
-                              np.sum(tt['amp_nstars']),
-                              amp_sigma_neg,
-                              amp_sigma_pos,
-                              np.sum(tt['sfr']),
-                              sfr_sigma_pos,
-                              sfr_sigma_neg,
-                              np.sum(tt['mass']),
-                              mass_err_pos,
-                              mass_err_neg,
-                              np.mean(tt['dt']),
-                              ))
-        return binned_t
 
     @property
     def mean_log_age(self):
@@ -364,3 +330,51 @@ class SFH(object):
         """
         data = plane.read_chi(self.full_chi_path, self.plane_index(plane))
         return data
+
+
+def marginalize_sfh_metallicity(sfh_table):
+    """Marginalize SFH table across metallicities.
+
+    Parameters
+    ----------
+    t : :class:`astropy.table.Table`
+        The SFH model table, made by `SFH.solution_table`.
+    """
+    # Handle case of pre-marginalized solution table.
+    if 'Z' not in sfh_table:
+        return sfh_table
+
+    t = sfh_table
+
+    # Uniqueness/comparisons are made against rounded integer myr ages
+    rounded_ages = np.empty(len(t), dtype=np.int)
+    np.around(10. ** (t['log(age)'] - 6.),
+              decimals=0, out=rounded_ages)
+    unique_rounded_ages = np.unique(rounded_ages)
+    s = np.argsort(unique_rounded_ages)
+    unique_rounded_ages = unique_rounded_ages[s]
+
+    binned_t = Table(names=t.colnames)
+    for i, age_token in enumerate(unique_rounded_ages):
+        tt = t[rounded_ages == age_token]
+        # error propagation
+        sfr_sigma_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+        sfr_sigma_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
+        amp_sigma_pos = np.sqrt(np.sum(tt['amp_nstars_p'] ** 2.))
+        amp_sigma_neg = np.sqrt(np.sum(tt['amp_nstars'] ** 2.))
+        mass_err_pos = np.sqrt(np.sum(tt['sfr_pos_err'] ** 2.))
+        mass_err_neg = np.sqrt(np.sum(tt['sfr_neg_err'] ** 2.))
+        binned_t.add_row((np.mean(tt['Z']),
+                          tt['log(age)'][0],
+                          np.sum(tt['amp_nstars']),
+                          amp_sigma_neg,
+                          amp_sigma_pos,
+                          np.sum(tt['sfr']),
+                          sfr_sigma_pos,
+                          sfr_sigma_neg,
+                          np.sum(tt['mass']),
+                          mass_err_pos,
+                          mass_err_neg,
+                          np.mean(tt['dt']),
+                          ))
+    return binned_t

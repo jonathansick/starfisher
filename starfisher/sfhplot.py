@@ -12,6 +12,8 @@ import matplotlib.gridspec as gridspec
 
 import palettable
 
+from .sfh import marginalize_sfh_metallicity
+
 
 def plot_sfh_line(ax, sfh_table,
                   z_formatter=mpl.ticker.FormatStrFormatter("%.2f"),
@@ -94,41 +96,31 @@ def plot_single_sfh_line(
         label=None,
         plot_errors=False,
         hatch_errors=None,
-        drawstyle='default'):
-    amp = sfh_table[amp_key]
+        drawstyle='default',
+        log_error_floor=-10):
+    t = marginalize_sfh_metallicity(sfh_table)
+
+    amp = t[amp_key]
     if log_amp:
         amp = np.log10(amp)
 
     if not log_age:
-        age = 10. ** (sfh_table['log(age)'] - 9.)  # Gyr
+        age = 10. ** (t['log(age)'] - 9.)  # Gyr
     else:
-        age = sfh_table['log(age)']
+        age = t['log(age)']
 
-    # check if the table has not been pre-marginalized
-    if 'Z' in sfh_table.dtype.names:
-        ZZsol = np.log10(sfh_table['Z'] / 0.019)
-        z_vals = np.unique(ZZsol)
-        srt = np.argsort(z_vals)
-        z = z_vals[srt[0]]
-        s = np.where(ZZsol == z)[0]
-    else:
-        s = np.arange(len(sfh_table), dtype=int)  # dummy index
+    s = np.argsort(age)
 
     ax.plot(age[s], amp[s], ls='-', lw=2.5,
             c=color, drawstyle=drawstyle, label=label)
 
     if plot_errors and amp_key == 'sfr':
-        pos_err = sfh_table['sfr_pos_err'][s]
-        neg_err = sfh_table['sfr_neg_err'][s]
+        pos_err = t['sfr_pos_err'][s]
+        neg_err = t['sfr_neg_err'][s]
         if log_amp:
-            pos_ci = np.log10(sfh_table['sfr'][s] + pos_err)
-            neg_ci = np.log10(sfh_table['sfr'][s] - neg_err)
-            neg_ci[~np.isfinite(neg_ci)] = -10  # FIXME hack for -inf clipped
-        # print "pos_error", np.median(pos_err - amp[s])
-        # print "neg", np.median(neg_err - amp[s])
-        # print "fillling in error"
-        # ax.fill_between(age[s], pos_err, y2=neg_err, facecolor=color,
-        #                 alpha=0.2, edgecolor='None')
+            pos_ci = np.log10(t['sfr'][s] + pos_err)
+            neg_ci = np.log10(t['sfr'][s] - neg_err)
+            neg_ci[~np.isfinite(neg_ci)] = log_error_floor  # HACK for -inf
 
         error_args = {'zorder': -10}
         hatch_error_args = {'facecolor': 'None', 'edgecolor': color,
