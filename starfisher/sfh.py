@@ -228,10 +228,9 @@ class SFH(object):
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
-        # FIXME make this cdt; add column cdt
-        dt = Column(dt, name='dt', unit='yr')
+        cdt = Column(dt, name='dt', unit='yr')
         t.add_columns([csfr, csap, csan, cmass, cmass_pos_err, cmass_neg_err,
-                       dt])
+                       cdt])
 
         if marginalize_z:
             t = marginalize_sfh_metallicity(t)
@@ -242,69 +241,38 @@ class SFH(object):
     def mean_log_age(self):
         """Mean age of a fit, in log(age)."""
         t = self.solution_table(marginalize_z=True)
-        m = np.interp(50.,
-                      np.cumsum(t['mass']) / t['mass'].sum() * 100.,
-                      t['logage'])
-        # estimate mean uncertainty from positive and negative error lim
-        sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
-        # Use resampling to estimate uncertainty of mean
-        n_boot = 1000
-        boot_means = np.empty(n_boot, dtype=np.float)
-        n_ages = len(t)
-        for i in xrange(n_boot):
-            resamp = sigma * np.random.randn(n_ages) + t['mass']
-            mi = np.interp(50.,
-                           np.cumsum(resamp) / resamp.sum() * 100.,
-                           t['log(age)'])
-            boot_means[i] = mi
-        sigma_mean = np.std(boot_means)
-        print "mean_log_age", m, sigma_mean
-        return m, sigma_mean
+        return estimate_mean_age(
+            t['log(age)'], t['mass'],
+            mass_positive_sigma=t['mass_pos_err'],
+            mass_negative_sigma=t['mass_neg_err'],
+            n_boot=1000)
 
     @property
     def mean_age(self):
+        """Mean age of a fit, in Gyr."""
         t = self.solution_table(marginalize_z=True)
         age_gyr = 10. ** t['log(age)'] / 1e9
-        m = np.interp(50.,
-                      np.cumsum(t['mass']) / t['mass'].sum() * 100.,
-                      age_gyr)
-        sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
-        n_boot = 1000
-        boot_means = np.empty(n_boot, dtype=np.float)
-        n_ages = len(t)
-        for i in xrange(n_boot):
-            resamp = sigma * np.random.randn(n_ages) + t['mass']
-            mi = np.interp(50.,
-                           np.cumsum(resamp) / resamp.sum() * 100.,
-                           age_gyr)
-            boot_means[i] = mi
-        sigma_mean = np.std(boot_means)
-        print "mean_age", m, sigma_mean
-        return m, sigma_mean
+        return estimate_mean_age(
+            age_gyr, t['mass'],
+            mass_positive_sigma=t['mass_pos_err'],
+            mass_negative_sigma=t['mass_neg_err'],
+            n_boot=1000)
 
     @property
     def mean_age_by_z(self):
+        """Mean age of a git in Gyr for each isochrone track."""
         sfh_tables = self.solution_table(split_z=True)
         mean_ages = OrderedDict()
         mean_age_sigmas = OrderedDict()
         for z, t in sfh_tables.iteritems():
             age_gyr = 10. ** t['log(age)'] / 1e9
-            m = np.interp(50.,
-                          np.cumsum(t['mass']) / t['mass'].sum() * 100.,
-                          age_gyr)
-            sigma = (t['mass_pos_err'] + t['mass_neg_err']) / 2.
-            n_boot = 1000
-            boot_means = np.empty(n_boot, dtype=np.float)
-            n_ages = len(t)
-            for i in xrange(n_boot):
-                resamp = sigma * np.random.randn(n_ages) + t['mass']
-                mi = np.interp(50.,
-                               np.cumsum(resamp) / resamp.sum() * 100.,
-                               age_gyr)
-                boot_means[i] = mi
-            sigma_mean = np.std(boot_means)
-            mean_ages[z] = m
-            mean_age_sigmas[z] = sigma_mean
+            mean_age, mean_age_sigma = estimate_mean_age(
+                age_gyr, t['mass'],
+                mass_positive_sigma=t['mass_pos_err'],
+                mass_negative_sigma=t['mass_neg_err'],
+                n_boot=1000)
+            mean_ages[z] = mean_age
+            mean_age_sigmas[z] = mean_age_sigma
         return mean_ages, mean_age_sigmas
 
     def plane_index(self, plane):
@@ -390,15 +358,17 @@ def estimate_mean_age(bin_age, mass,
     error if possible.
     """
     sfh = rebin_sfh(bin_age, mass,
-                    mass_positive_sigma=mass_positive_sigma,
-                    mass_negative_sigma=mass_negative_sigma)
+                    centre_mass_pos_sigma=mass_positive_sigma,
+                    centre_mass_neg_sigma=mass_negative_sigma)
     n = len(sfh.age)
 
-    mean_age = np.intep(50.,
-                        np.cumsum(sfh.mass) / sfh.mass.sum() * 100.,
-                        sfh.age)
+    mean_age = np.interp(50.,
+                         np.cumsum(sfh.mass) / sfh.mass.sum() * 100.,
+                         sfh.age)
 
     if n_boot > 0:
+        assert mass_positive_sigma is not None
+        assert mass_negative_sigma is not None
         mass_sigma = (sfh.mass_pos_sigma + sfh.mass_neg_sigma) / 2.
 
         samples = np.empty(n_boot, dtype=np.float)
