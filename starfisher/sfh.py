@@ -228,6 +228,7 @@ class SFH(object):
         csfr = Column(sfr, name='sfr', unit='M_solar/yr')
         csap = Column(sap, name='sfr_pos_err', unit='M_solar/yr')
         csan = Column(san, name='sfr_neg_err', unit='M_solar/yr')
+        # FIXME make this cdt; add column cdt
         dt = Column(dt, name='dt', unit='yr')
         t.add_columns([csfr, csap, csan, cmass, cmass_pos_err, cmass_neg_err,
                        dt])
@@ -379,3 +380,48 @@ def marginalize_sfh_metallicity(sfh_table):
                           np.mean(tt['dt']),
                           ))
     return binned_t
+
+
+def estimate_mean_age_gyr(bin_age, mass,
+                          mass_positive_sigma=None,
+                          mass_negative_sigma=None):
+    """Compute the mean age of a marginalized SFH in Gyr; estimate a bootstrap
+    error if possible.
+    """
+    rebinned = rebin_mass_to_bin_edges(bin_age, mass,
+                                       mass_positive_sigma=mass_positive_sigma,
+                                       mass_negative_sigma=mass_negative_sigma)
+
+
+def rebin_mass_to_bin_edges(centre_age, centre_mass,
+                            centre_mass_pos_sigma=None,
+                            centre_mass_neg_sigma=None):
+    pass
+
+
+def regrid_ages(centre_ages):
+    """Make an edge grid from the edges of the time bins.
+
+    There is N + 1 edges. Edges are placed halfway between the centre age
+    bins (which come from lockfiles).
+    """
+    n = len(centre_ages)
+    edge_ages = np.empty(n + 1, dtype=np.float)
+
+    for i in xrange(0, n):
+        # i is index into centre_ages
+        # *and* index into *left* edge_ages
+
+        if i == (n - 1):
+            # for last bin, compute width against previous centre
+            dt = (centre_ages[i] - centre_ages[i - 1]) / 2.
+        else:
+            # normally compute width against *next* centre
+            dt = (centre_ages[i + 1] - centre_ages[i]) / 2.
+        edge_ages[i] = centre_ages[i] - dt
+
+        if i == (n - 1):
+            # special case for last bin; fill in last element too
+            edge_ages[i + 1] = centre_ages[i] + dt
+
+    return edge_ages
