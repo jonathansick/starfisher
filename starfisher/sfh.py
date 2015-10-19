@@ -6,7 +6,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 """
 
 import os
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import subprocess
 
 import numpy as np
@@ -388,15 +388,58 @@ def estimate_mean_age_gyr(bin_age, mass,
     """Compute the mean age of a marginalized SFH in Gyr; estimate a bootstrap
     error if possible.
     """
-    rebinned = rebin_mass_to_bin_edges(bin_age, mass,
-                                       mass_positive_sigma=mass_positive_sigma,
-                                       mass_negative_sigma=mass_negative_sigma)
+    sfh = rebin_sfh(bin_age, mass,
+                    mass_positive_sigma=mass_positive_sigma,
+                    mass_negative_sigma=mass_negative_sigma)
+    print(sfh)
 
 
-def rebin_mass_to_bin_edges(centre_age, centre_mass,
-                            centre_mass_pos_sigma=None,
-                            centre_mass_neg_sigma=None):
-    pass
+def rebin_sfh(centre_age, centre_mass,
+              centre_mass_pos_sigma=None,
+              centre_mass_neg_sigma=None):
+    """Rebin the SFH so that mass is created at the *edges* of the isochrone
+    time bins.
+
+    This rebinning
+
+    - creates a new age grid corresponding to the edges of the time spans
+      for each isochrone.
+    - redistributes mass associated with an isochrone evently between
+      the new bins corresponding to the edge
+    - also redistributes mass error.
+
+    This is done so that when the mean age is computed for an SSP it correctly
+    returns the age of the SSP isochrone itself.
+    """
+    edge_ages = regrid_ages(centre_age)
+
+    edge_mass = np.zeros(edge_ages.shape, dtype=np.float)
+    edge_mass_pos_sigma_sq = np.zeros(edge_ages.shape, dtype=np.float)
+    edge_mass_neg_sigma_sq = np.zeros(edge_ages.shape, dtype=np.float)
+
+    for i in xrange(0, edge_ages.shape[0] - 1):
+        # i is index into centre_* quantities
+        # and index into left edge_* quantities
+        half_mass = centre_mass[i] / 2.
+        edge_mass[i] += half_mass
+        edge_mass[i + 1] += half_mass
+
+        if centre_mass_pos_sigma is not None:
+            half_pos_sigma_sq = centre_mass_pos_sigma[i] ** 2. / 2.
+            half_neg_sigma_sq = centre_mass_neg_sigma[i] ** 2. / 2.
+            edge_mass_pos_sigma_sq[i] += half_pos_sigma_sq
+            edge_mass_pos_sigma_sq[i + 1] += half_pos_sigma_sq
+            edge_mass_neg_sigma_sq[i] += half_neg_sigma_sq
+            edge_mass_neg_sigma_sq[i + 1] += half_neg_sigma_sq
+
+    edge_mass_pos_sigma = np.sqrt(edge_mass_pos_sigma_sq)
+    edge_mass_neg_sigma = np.sqrt(edge_mass_neg_sigma_sq)
+
+    EdgeSFH = namedtuple('EdgeSFH', 'age mass mass_pos_sigma mass_neg_sigma')
+    edge_sfh = EdgeSFH(age=edge_ages, mass=edge_mass,
+                       mass_pos_sigma=edge_mass_pos_sigma,
+                       mass_neg_sigma=edge_mass_neg_sigma)
+    return edge_sfh
 
 
 def regrid_ages(centre_ages):
