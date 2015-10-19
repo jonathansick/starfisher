@@ -382,16 +382,38 @@ def marginalize_sfh_metallicity(sfh_table):
     return binned_t
 
 
-def estimate_mean_age_gyr(bin_age, mass,
-                          mass_positive_sigma=None,
-                          mass_negative_sigma=None):
-    """Compute the mean age of a marginalized SFH in Gyr; estimate a bootstrap
+def estimate_mean_age(bin_age, mass,
+                      mass_positive_sigma=None,
+                      mass_negative_sigma=None,
+                      n_boot=1000):
+    """Compute the mean age of a marginalized SFH; estimate a bootstrap
     error if possible.
     """
     sfh = rebin_sfh(bin_age, mass,
                     mass_positive_sigma=mass_positive_sigma,
                     mass_negative_sigma=mass_negative_sigma)
-    print(sfh)
+    n = len(sfh.age)
+
+    mean_age = np.intep(50.,
+                        np.cumsum(sfh.mass) / sfh.mass.sum() * 100.,
+                        sfh.age)
+
+    if n_boot > 0:
+        mass_sigma = (sfh.mass_pos_sigma + sfh.mass_neg_sigma) / 2.
+
+        samples = np.empty(n_boot, dtype=np.float)
+        for i in xrange(n_boot):
+            resamp_mass = mass_sigma * np.random.randn(n) + sfh.mass
+            mi = np.interp(
+                50.,
+                np.cumsum(resamp_mass) / resamp_mass.sum() * 100.,
+                sfh.age)
+            samples[i] = mi
+        mean_sigma = np.std(samples)
+
+        return mean_age, mean_sigma
+    else:
+        return mean_age, 0.
 
 
 def rebin_sfh(centre_age, centre_mass,
