@@ -6,7 +6,7 @@ of a stellar population by optimizing the linear combination of eigen-CMDs.
 """
 
 import os
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 import subprocess
 
 import numpy as np
@@ -357,106 +357,21 @@ def estimate_mean_age(bin_age, mass,
     """Compute the mean age of a marginalized SFH; estimate a bootstrap
     error if possible.
     """
-    sfh = rebin_sfh(bin_age, mass,
-                    centre_mass_pos_sigma=mass_positive_sigma,
-                    centre_mass_neg_sigma=mass_negative_sigma)
-    n = len(sfh.age)
-
-    mean_age = np.interp(50.,
-                         np.cumsum(sfh.mass) / sfh.mass.sum() * 100.,
-                         sfh.age)
+    n = len(bin_age)
+    mean_age = np.average(bin_age, weights=mass)
 
     if n_boot > 0:
         assert mass_positive_sigma is not None
         assert mass_negative_sigma is not None
-        mass_sigma = (sfh.mass_pos_sigma + sfh.mass_neg_sigma) / 2.
+        mass_sigma = (mass_positive_sigma + mass_negative_sigma) / 2.
 
         samples = np.empty(n_boot, dtype=np.float)
         for i in xrange(n_boot):
-            resamp_mass = mass_sigma * np.random.randn(n) + sfh.mass
-            mi = np.interp(
-                50.,
-                np.cumsum(resamp_mass) / resamp_mass.sum() * 100.,
-                sfh.age)
+            resamp_mass = mass_sigma * np.random.randn(n) + mass
+            mi = np.average(bin_age, weights=resamp_mass)
             samples[i] = mi
         mean_sigma = np.std(samples)
 
         return mean_age, mean_sigma
     else:
         return mean_age, 0.
-
-
-def rebin_sfh(centre_age, centre_mass,
-              centre_mass_pos_sigma=None,
-              centre_mass_neg_sigma=None):
-    """Rebin the SFH so that mass is created at the *edges* of the isochrone
-    time bins.
-
-    This rebinning
-
-    - creates a new age grid corresponding to the edges of the time spans
-      for each isochrone.
-    - redistributes mass associated with an isochrone evently between
-      the new bins corresponding to the edge
-    - also redistributes mass error.
-
-    This is done so that when the mean age is computed for an SSP it correctly
-    returns the age of the SSP isochrone itself.
-    """
-    edge_ages = regrid_ages(centre_age)
-
-    edge_mass = np.zeros(edge_ages.shape, dtype=np.float)
-    edge_mass_pos_sigma_sq = np.zeros(edge_ages.shape, dtype=np.float)
-    edge_mass_neg_sigma_sq = np.zeros(edge_ages.shape, dtype=np.float)
-
-    for i in xrange(0, edge_ages.shape[0] - 1):
-        # i is index into centre_* quantities
-        # and index into left edge_* quantities
-        half_mass = centre_mass[i] / 2.
-        edge_mass[i] += half_mass
-        edge_mass[i + 1] += half_mass
-
-        if centre_mass_pos_sigma is not None:
-            half_pos_sigma_sq = centre_mass_pos_sigma[i] ** 2. / 2.
-            half_neg_sigma_sq = centre_mass_neg_sigma[i] ** 2. / 2.
-            edge_mass_pos_sigma_sq[i] += half_pos_sigma_sq
-            edge_mass_pos_sigma_sq[i + 1] += half_pos_sigma_sq
-            edge_mass_neg_sigma_sq[i] += half_neg_sigma_sq
-            edge_mass_neg_sigma_sq[i + 1] += half_neg_sigma_sq
-
-    edge_mass_pos_sigma = np.sqrt(edge_mass_pos_sigma_sq)
-    edge_mass_neg_sigma = np.sqrt(edge_mass_neg_sigma_sq)
-
-    EdgeSFH = namedtuple('EdgeSFH', 'age mass mass_pos_sigma mass_neg_sigma')
-    edge_sfh = EdgeSFH(age=edge_ages, mass=edge_mass,
-                       mass_pos_sigma=edge_mass_pos_sigma,
-                       mass_neg_sigma=edge_mass_neg_sigma)
-    return edge_sfh
-
-
-def regrid_ages(centre_ages):
-    """Make an edge grid from the edges of the time bins.
-
-    There is N + 1 edges. Edges are placed halfway between the centre age
-    bins (which come from lockfiles).
-    """
-    n = len(centre_ages)
-    edge_ages = np.empty(n + 1, dtype=np.float)
-
-    for i in xrange(0, n):
-        # i is index into centre_ages
-        # *and* index into *left* edge_ages
-
-        if i == (n - 1):
-            # for last bin, compute width against previous centre
-            dt = (centre_ages[i] - centre_ages[i - 1]) / 2.
-        else:
-            # normally compute width against *next* centre
-            dt = (centre_ages[i + 1] - centre_ages[i]) / 2.
-        edge_ages[i] = centre_ages[i] - dt
-
-        if i == (n - 1):
-            # special case for last bin; fill in last element too
-            edge_ages[i + 1] = centre_ages[i] + dt
-
-    return edge_ages
