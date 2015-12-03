@@ -149,9 +149,8 @@ class TestPop(object):
         sfh_table = self.sfh_table
 
         # Uniqueness/comparisons are made against rounded integer myr ages
-        rounded_ages = np.empty(len(sfh_table), dtype=np.int)
-        np.around(10. ** (sfh_table['log(age)'] - 6.),
-                  decimals=0, out=rounded_ages)
+        rounded_ages = np.around(10. ** (sfh_table['log(age)'] - 6.),
+                                 decimals=0).astype(np.int)
         unique_rounded_ages = np.unique(rounded_ages)
         s = np.argsort(unique_rounded_ages)
         unique_rounded_ages = unique_rounded_ages[s]
