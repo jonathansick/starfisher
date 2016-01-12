@@ -50,7 +50,8 @@ class TestPop(object):
                  n_star_amp=True):
         super(TestPop, self).__init__()
         self.name = name
-        assert len(self.name) <= 8
+        assert len(self.name) <= 8, \
+            "{0} is longer than 8 characters".format(self.name)
         self.synth = synth
         self.sfh_amps = sfh_amps
         self.use_lockfile = use_lockfile
