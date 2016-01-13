@@ -311,7 +311,7 @@ def marginalize_sfh_metallicity(sfh_table):
         The SFH model table, made by `SFH.solution_table`.
     """
     # Handle case of pre-marginalized solution table.
-    if 'Z' not in sfh_table:
+    if 'Z' not in sfh_table.colnames:
         return sfh_table
 
     t = sfh_table
